@@ -32,6 +32,18 @@ on:
 
 jobs:
   ci:
+    services:
+      postgres:
+        image: geographica/postgis:dev_diplodocus
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+        # will assign a random free host port
+        - 5432/tcp
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -45,6 +57,9 @@ jobs:
           version: ${{ matrix.julia-version }}
       - uses: julia-actions/julia-buildpkg@latest
       - uses: julia-actions/julia-runtest@latest
+        env:
+          POSTGIS_HOST: localhost
+          POSTGIS_PORT: ${{ job.services.postgres.ports[5432] }}
       - uses: julia-actions/julia-uploadcodecov@latest
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
