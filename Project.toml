@@ -1,5 +1,6 @@
 name = "OSSGH"
 uuid = "135e50b6-a2ae-4e53-8c0b-0f5659f9d0de"
+version = "0.1.0"
 
 [deps]
 ConfParser = "88353bc9-fd38-507d-a820-d3b43837d6b9"
