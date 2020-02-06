@@ -34,15 +34,13 @@ jobs:
   ci:
     services:
       postgres:
-        image: geographica/postgis:dev_diplodocus
+        image: postgres:12.1-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
         ports:
-        # will assign a random free host port
-        - 5432/tcp
-        # needed because the postgres container does not provide a healthcheck
+          - 5432/tcp
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     runs-on: ${{ matrix.os }}
     strategy:

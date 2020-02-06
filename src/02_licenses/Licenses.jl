@@ -11,18 +11,27 @@ using JSON3: JSON3
 using LibPQ: Connection, execute, prepare
 using Parameters: @unpack
 """
-    spdx_corrections
+    SPDX_CORRECTIONS
 
 Manual fixes to the SPDX for which the OSI website had wrong based on the SPDX data.
 """
-const spdx_corrections = ("LiliQ-P" => "LiLiQ-P-1.1",
+const SPDX_CORRECTIONS = ("LiliQ-P" => "LiLiQ-P-1.1",
                           "LiliQ-R" => "LiLiQ-R-1.1", 
                           "LiliQ-R+" => "LiLiQ-Rplus-1.1",
                           "UPL" => "UPL-1.0",
                           "WXwindows" => "wxWindows")
-const selector_li = Selector(".field-item > ul > li");
-const selector_a = Selector("a");
+"""
+    SELECTOR_LI
 
+CSS Selector for list items in the unordered list inside the field-item class.
+"""
+const SELECTOR_LI = Selector(".field-item > ul > li");
+"""
+    SELECTOR_LI
+
+CSS Selector for the anchor tag.
+"""
+const SELECTOR_A = Selector("a");
 """
     parse_license(node)
 
@@ -36,11 +45,11 @@ function parse_license(node)
     if !occursin("(", text) || occursin(r"\(retired\)$", text)
         output = nothing
     else
-        matches = eachmatch(selector_a, node)
+        matches = eachmatch(SELECTOR_A, node)
         if length(matches) ≠ 1
             output = nothing
         else
-            text = strip(nodeText(first(eachmatch(selector_a, node))))
+            text = strip(nodeText(first(eachmatch(SELECTOR_A, node))))
             name = match(r"^.*?(?= \()", text).match
             spdx = match(r"(?<=\()[^\s]*?(?=\)$)", text).match
             output = (name = name, spdx = spdx)
@@ -50,7 +59,7 @@ end
 """
     manual_fix_spdx!(spdx, wrong, correct)
 
-Modifies `spdx` by fixing wrond SPDX codes with their correct one.
+Modifies `spdx` by fixing wrong SPDX codes with the correct ones.
 """
 function manual_fix_spdx!(spdx, wrong, correct)
     idx = findfirst(x -> isequal(wrong, last(x)), spdx)
@@ -67,7 +76,7 @@ Return non-retired OSI approved licences and the date when the data was last que
 @inline function osi_licenses()::Tuple{Vector{NamedTuple{(:name, :spdx),Tuple{SubString{String},SubString{String}}}},SubString{String}}
     response = request("GET", "https://opensource.org/licenses/alphabetical");
     html = parsehtml(String(response.body));
-    licenses = eachmatch(selector_li, html.root);
+    licenses = eachmatch(SELECTOR_LI, html.root);
     spdx = collect(Iterators.filter(!isnothing, parse_license(node) for node ∈ licenses))
     response_date = last(response.headers[findfirst(isequal("Date"), first.(response.headers))])
     spdx, response_date
@@ -88,6 +97,47 @@ end
     upload_licenses(obj::Opt)
 
 Creates the licences table in the database.
+
+It first obtains the name and license code for all approved non-retired licenses by Open Source Initiative on the [website](https://opensource.org/licenses/alphabetical).
+It validates the license codes with the latest published Software Package Data Exchange (SPDX) [data](https://raw.githubusercontent.com/spdx/license-list-data/master/json/licenses.json).
+It corrects errors by applying the following corrections:
+$(SPDX_CORRECTIONS)
+It refreshes the data if data has been previously collected.
+The table metadata is recorded.
+
+# Example
+
+```jldoctest; filter = r"On: \\w{3}, \\d{2} \\w{3} \\d{4} \\d{2}:\\d{2}:\\d{2} GMT"
+julia> setup(opt)
+
+julia> upload_licenses(opt)
+
+
+julia> getproperty.(execute(opt.conn, string("SELECT COUNT(*) > 0 as chk FROM ", opt.schema, ".licenses;")),
+                    :chk)[1]
+true
+
+julia> getproperty.(execute(opt.conn, string("SELECT obj_description('", opt.schema, ".licenses'::regclass);")),
+                    :obj_description)[1] |> println
+License name and SPDX based on non-retired OSI-approved licenses.
+      Based on data at: https://opensource.org/licenses/alphabetical
+      On: Thu, 06 Feb 2020 03:32:51 GMT
+      Using SPDX codes from release date: 2020-01-30
+
+julia> execute(opt.conn, string("SELECT column_name, data_type, col_description('",
+                                opt.schema, ".licenses'::regclass, ordinal_position) ",
+                                "FROM information_schema.columns ",
+                                "WHERE table_schema = '", opt.schema, "' AND table_name = 'licenses';")) |>
+           DataFrame
+2×3 DataFrames.DataFrame
+│ Row │ column_name │ data_type │ col_description                           │
+│     │ String⍰     │ String⍰   │ Union{Missing, String}                    │
+├─────┼─────────────┼───────────┼───────────────────────────────────────────┤
+│ 1   │ name        │ text      │ Name of the license.                      │
+│ 2   │ spdx        │ text      │ Software Package Data Exchange License ID │
+
+```
+
 """
 function upload_licenses(obj::Opt)
     @unpack conn, schema, role = obj
@@ -95,16 +145,16 @@ function upload_licenses(obj::Opt)
     # Verify SPDX with SPDX ID data
     spdx, response_date = osi_licenses()
     spdx_id, spdx_date = sdpx_data()
-    foreach(wc -> manual_fix_spdx!(spdx, wc...), spdx_corrections)
+    foreach(wc -> manual_fix_spdx!(spdx, wc...), SPDX_CORRECTIONS)
     @assert isempty(setdiff(last.(spdx), spdx_id))
     @assert length(unique(spdx)) == length(spdx)
     sort!(spdx, by = (x -> x.spdx))
     # Create table if needed
     execute(conn, """COMMENT ON TABLE $schema.licenses IS
-                     'License name and SPDX based on non-retired OSI-approved licenses.
-                      Based on data at: https://opensource.org/licenses/alphabetical
-                      On: $response_date
-                      Using SPDX codes from release date: $spdx_date';
+                       'License name and SPDX based on non-retired OSI-approved licenses.
+                        Based on data at: https://opensource.org/licenses/alphabetical
+                        On: $response_date
+                        Using SPDX codes from release date: $spdx_date';
                      COMMENT ON COLUMN $schema.licenses.name IS 'Name of the license.';
                      COMMENT ON COLUMN $schema.licenses.spdx IS 'Software Package Data Exchange License ID';
                      ALTER TABLE $schema.licenses OWNER to $role;
@@ -114,4 +164,3 @@ function upload_licenses(obj::Opt)
     foreach(row -> execute(stmt, collect(row)), spdx)
 end
 end
-

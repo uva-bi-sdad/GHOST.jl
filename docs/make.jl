@@ -11,9 +11,10 @@ makedocs(sitename = "OSSGH",
          modules = [OSSGH],
          pages = [
              "Home" => "index.md",
-            #  "Manual" => "manual.md",
-            #  "API" => "api.md"
-         ]
+             "Manual" => "manual.md",
+             "API" => "api.md"
+         ],
+         doctest = false
 )
 
 deploydocs(repo = "github.com/uva-bi-sdad/OSSGH.jl.git",

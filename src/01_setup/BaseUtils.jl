@@ -11,7 +11,6 @@ using HTTP: request
 using LibPQ: Connection, execute
 using Parameters: @unpack
 import Base: show, summary
-
 # Constants
 """
     GITHUB_REST_ENDPOINT
@@ -100,7 +99,7 @@ fragment CommitData on CommitHistoryConnection {
 """
 # Structs
 """
-        Limits
+    Limits
 
 GitHub API v4 GraphQL limits for a PersonalAccessToken.
 """
@@ -110,7 +109,8 @@ mutable struct Limits
 end
 """
     GitHubPersonalAccessToken
-A GitHub Personal Access Token.
+
+A GitHub Personal Access Token
 """
 struct GitHubPersonalAccessToken
     login::String
@@ -149,11 +149,20 @@ function update!(obj::GitHubPersonalAccessToken)
     obj.limits.reset = unix2datetime(json.reset)
     obj
 end
+"""
+    graphql(obj::GitHubPersonalAccessToken,
+            operationName::AbstractString,
+            vars::Dict{String})
+
+Return JSON 
+"""
 function graphql(obj::GitHubPersonalAccessToken,
                  operationName::AbstractString,
                  vars::Dict{String})
-    iszero(obj.limits.remaining) && sleep(max(obj.limits.reset - now(), 0))
-    obj.limits.remaining = 5_000
+    if iszero(obj.limits.remaining)
+        sleep(max(obj.limits.reset - now(), 0))
+        obj.limits.remaining = 5_000
+    end
     result = obj.client.Query(GITHUB_API_QUERY,
                               operationName = operationName,
                               vars = vars)
@@ -168,13 +177,13 @@ end
 """
     OPT(login::AbstractString,
         token::AbstractString;
-        db_usr::AbstractString = match(r"(?<=/)[^/]*\$", homedir()).match,
-        db_pwd::AbstractString = match(r"(?<=/)[^/]*\$", homedir()).match,
+        db_usr::AbstractString = "postgres",
+        db_pwd::AbstractString = "postgres",
         host::AbstractString = "postgres",
         port::Integer = 5432,
         dbname::AbstractString = "postgres",
         schema::AbstractString = "github_api_2007_",
-        role::AbstractString = match(r"(?<=/)[^/]*\$", homedir()).match)
+        role::AbstractString = "postgres")
 
 Structure for passing arguments to functions.
 """
@@ -185,10 +194,10 @@ struct Opt
     pat::GitHubPersonalAccessToken
     function Opt(login::AbstractString,
                  token::AbstractString;
-                 db_usr::AbstractString = match(r"(?<=/)[^/]*$", homedir()).match,
-                 db_pwd::AbstractString = match(r"(?<=/)[^/]*$", homedir()).match,
+                 db_usr::AbstractString = "postgres",
+                 db_pwd::AbstractString = "postgres",
                  schema::AbstractString = "github_api_2007_",
-                 role::AbstractString = match(r"(?<=/)[^/]*$", homedir()).match,
+                 role::AbstractString = "postgres",
                  host::AbstractString = "postgres",
                  port::Integer = 5432,
                  dbname::AbstractString = "postgres")
