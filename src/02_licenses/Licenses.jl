@@ -1,7 +1,7 @@
 """
     Licenses
 
-Application for uploading OSI-approved non-retired licences name and SPDX to the database.
+Application for uploading OSI-approved non-retired licenses name and SPDX to the database.
 """
 module Licenses
 using ..BaseUtils: Opt
@@ -73,7 +73,7 @@ end
                                             Tuple{SubString{String},SubString{String}}}},
                           SubString{String}}
 
-Return non-retired OSI approved licences and the date when the data was last queried.
+Return non-retired OSI approved licenses and the date when the data was last queried.
 """
 @inline function osi_licenses()::Tuple{Vector{NamedTuple{(:name, :spdx),
                                                          Tuple{SubString{String},SubString{String}}}},
@@ -100,15 +100,18 @@ end
 """
     upload_licenses(obj::Opt)
 
-Creates the licences table in the database.
+Creates the licenses table in the database.
 
 It first obtains the name and license code for all approved non-retired licenses by Open Source Initiative on the [website](https://opensource.org/licenses/alphabetical).
+
 It validates the license codes with the latest published Software Package Data Exchange (SPDX) [data](https://raw.githubusercontent.com/spdx/license-list-data/master/json/licenses.json).
+
 It corrects errors by applying the following corrections:
 
 $SPDX_CORRECTIONS
 
 It refreshes the data if data has been previously collected.
+
 The table metadata is recorded.
 
 # Example
@@ -117,7 +120,6 @@ The table metadata is recorded.
 julia> setup(opt)
 
 julia> upload_licenses(opt)
-
 
 julia> execute(opt.conn,
                string("SELECT COUNT(*) > 0 as chk FROM ", opt.schema, ".licenses;")) |>

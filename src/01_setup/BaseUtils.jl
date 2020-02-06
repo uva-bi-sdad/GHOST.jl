@@ -15,13 +15,13 @@ import Base: show, summary
 """
     GITHUB_REST_ENDPOINT::String = "https://api.github.com"
         
-GitHub RESTful API v3 root endpoint.
+GitHub API v3 RESTful root endpoint.
 """
 const GITHUB_REST_ENDPOINT = "https://api.github.com"
 """
     GITHUB_GRAPHQL_ENDPOINT::String = "https://api.github.com/graphql"
         
-GitHub GraphQL API v4 endpoint.
+GitHub API v4 GraphQL API endpoint.
 """
 const GITHUB_GRAPHQL_ENDPOINT = "https://api.github.com/graphql"
 """
@@ -102,6 +102,7 @@ fragment CommitData on CommitHistoryConnection {
     Limits
 
 GitHub API v4 GraphQL limits for a PersonalAccessToken.
+
 It includes how many remaining queries are available for the current time period and when it resets.
 
 # Fields
