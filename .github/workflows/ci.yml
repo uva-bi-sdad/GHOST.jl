@@ -56,6 +56,7 @@ jobs:
       - uses: julia-actions/julia-buildpkg@latest
       - uses: julia-actions/julia-runtest@latest
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           POSTGIS_HOST: localhost
           POSTGIS_PORT: ${{ job.services.postgres.ports[5432] }}
       - uses: julia-actions/julia-uploadcodecov@latest
