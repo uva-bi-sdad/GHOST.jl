@@ -3,7 +3,7 @@ uuid = "135e50b6-a2ae-4e53-8c0b-0f5659f9d0de"
 version = "0.1.0"
 
 [deps]
-ConfParser = "88353bc9-fd38-507d-a820-d3b43837d6b9"
+Cascadia = "54eefc05-d75b-58de-a785-1a3403f0919f"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Diana = "070d9d8b-17a7-5814-83fa-42438ba5c6e0"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
@@ -14,7 +14,6 @@ Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 TimeZones = "f269a46b-ccf7-5d73-abea-4c690281aa53"
 
 [compat]
-ConfParser = "0.1"
 Diana = "0.2"
 HTTP = "0.8"
 JSON3 = "0.1"
@@ -25,8 +24,10 @@ TimeZones = "1"
 julia = "1"
 
 [extras]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "Documenter"]
+test = ["Test", "Documenter", "DataFrames", "Printf"]
