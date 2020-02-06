@@ -126,8 +126,8 @@ true
 
 julia> execute(opt.conn,
                @sprintf("SELECT obj_description('%s.licenses'::regclass);", opt.schema)) |>
-           (obj -> getproperty.(obj, :obj_description)[1] |>
-           println
+         (obj -> getproperty.(obj, :obj_description)[1]) |>
+         println
 License name and SPDX based on non-retired OSI-approved licenses.
       Based on data at: https://opensource.org/licenses/alphabetical
       On: Thu, 06 Feb 2020 03:32:51 GMT
