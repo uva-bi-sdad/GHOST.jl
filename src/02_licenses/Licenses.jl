@@ -69,11 +69,15 @@ function manual_fix_spdx!(spdx, wrong, correct)
     spdx
 end
 """
-    osi_licenses()::Tuple{Vector{NamedTuple{(:name, :spdx),Tuple{SubString{String},SubString{String}}}},SubString{String}}
+    osi_licenses()::Tuple{Vector{NamedTuple{(:name, :spdx),
+                                            Tuple{SubString{String},SubString{String}}}},
+                          SubString{String}}
 
 Return non-retired OSI approved licences and the date when the data was last queried.
 """
-@inline function osi_licenses()::Tuple{Vector{NamedTuple{(:name, :spdx),Tuple{SubString{String},SubString{String}}}},SubString{String}}
+@inline function osi_licenses()::Tuple{Vector{NamedTuple{(:name, :spdx),
+                                                         Tuple{SubString{String},SubString{String}}}},
+                                       SubString{String}}
     response = request("GET", "https://opensource.org/licenses/alphabetical");
     html = parsehtml(String(response.body));
     licenses = eachmatch(SELECTOR_LI, html.root);
@@ -115,21 +119,26 @@ julia> setup(opt)
 julia> upload_licenses(opt)
 
 
-julia> getproperty.(execute(opt.conn, string("SELECT COUNT(*) > 0 as chk FROM ", opt.schema, ".licenses;")),
-                    :chk)[1]
+julia> execute(opt.conn,
+               string("SELECT COUNT(*) > 0 as chk FROM ", opt.schema, ".licenses;")) |>
+           (obj -> getproperty.(obj, :chk)[1])
 true
 
-julia> getproperty.(execute(opt.conn, string("SELECT obj_description('", opt.schema, ".licenses'::regclass);")),
-                    :obj_description)[1] |> println
+julia> execute(opt.conn,
+               @sprintf("SELECT obj_description('%s.licenses'::regclass);", opt.schema)) |>
+           (obj -> getproperty.(obj, :obj_description)[1] |>
+           println
 License name and SPDX based on non-retired OSI-approved licenses.
       Based on data at: https://opensource.org/licenses/alphabetical
       On: Thu, 06 Feb 2020 03:32:51 GMT
       Using SPDX codes from release date: 2020-01-30
 
-julia> execute(opt.conn, string("SELECT column_name, data_type, col_description('",
-                                opt.schema, ".licenses'::regclass, ordinal_position) ",
-                                "FROM information_schema.columns ",
-                                "WHERE table_schema = '", opt.schema, "' AND table_name = 'licenses';")) |>
+julia> execute(opt.conn,
+               @sprintf(\"\"\"SELECT column_name, data_type, col_description('%s.licenses'::regclass, ordinal_position)
+                           FROM information_schema.columns
+                           WHERE table_schema = '%s' AND table_name = 'licenses';
+                        \"\"\",
+                        opt.schema, opt.schema)) |>
            DataFrame
 2×3 DataFrames.DataFrame
 │ Row │ column_name │ data_type │ col_description                           │
