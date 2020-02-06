@@ -13,13 +13,13 @@ using Parameters: @unpack
 import Base: show, summary
 # Constants
 """
-    GITHUB_REST_ENDPOINT
+    GITHUB_REST_ENDPOINT::String = "https://api.github.com"
         
 GitHub RESTful API v3 root endpoint.
 """
 const GITHUB_REST_ENDPOINT = "https://api.github.com"
 """
-    GITHUB_GRAPHQL_ENDPOINT
+    GITHUB_GRAPHQL_ENDPOINT::String = "https://api.github.com/graphql"
         
 GitHub GraphQL API v4 endpoint.
 """
@@ -102,15 +102,29 @@ fragment CommitData on CommitHistoryConnection {
     Limits
 
 GitHub API v4 GraphQL limits for a PersonalAccessToken.
+It includes how many remaining queries are available for the current time period and when it resets.
+
+# Fields
+- `remaining::Int`
+- `reset::DateTime`
 """
 mutable struct Limits
     remaining::Int
     reset::DateTime
 end
 """
-    GitHubPersonalAccessToken
+    GitHubPersonalAccessToken(login::AbstractString,
+                              token::AbstractString
+                              )::GitHubPersonalAccessToken
 
 A GitHub Personal Access Token
+
+# Fields
+
+- `login::String`
+- `token::String`
+- `client::Client`
+- `limits::Limits`
 """
 struct GitHubPersonalAccessToken
     login::String
@@ -154,7 +168,7 @@ end
             operationName::AbstractString,
             vars::Dict{String})
 
-Return JSON 
+Return JSON of the GraphQL query.
 """
 function graphql(obj::GitHubPersonalAccessToken,
                  operationName::AbstractString,
@@ -183,9 +197,16 @@ end
         port::Integer = 5432,
         dbname::AbstractString = "postgres",
         schema::AbstractString = "github_api_2007_",
-        role::AbstractString = "postgres")
+        role::AbstractString = "postgres"
+        )::OPT
 
 Structure for passing arguments to functions.
+
+# Fields
+- `conn::Connection`
+- `schema::String`
+- `role::String`
+- `pat::GitHubPersonalAccessToken`
 """
 struct Opt
     conn::Connection
@@ -215,13 +236,12 @@ function show(io::IO, obj::Opt)
     print(io, replace(replace(string(obj.pat), r"^" => "  "), r"\n[^$]" => "\n  "))
 end
 """
-    setup(obj::Opt)
+    setup(opt::Opt)
 
-Sets up your PostgreSQL database for the project.
-The default role value will be the connection's `current_user` if empty.
+Sets up your PostgreSQL database for the project based on the options passed through the `Opt`.
 """
-function setup(obj::Opt)
-    @unpack conn, schema, role = obj
+function setup(opt::Opt)
+    @unpack conn, schema, role = opt
     getproperty.(execute(conn, "SELECT COUNT(*) = 1 AS check FROM information_schema.schemata WHERE schema_name = '$schema';"),
                  :check)[1] && return
     getproperty.(execute(conn, "SELECT COUNT(*) = 1 AS check FROM pg_roles WHERE rolname = '$role';"),

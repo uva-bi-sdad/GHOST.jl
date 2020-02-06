@@ -101,7 +101,9 @@ Creates the licences table in the database.
 It first obtains the name and license code for all approved non-retired licenses by Open Source Initiative on the [website](https://opensource.org/licenses/alphabetical).
 It validates the license codes with the latest published Software Package Data Exchange (SPDX) [data](https://raw.githubusercontent.com/spdx/license-list-data/master/json/licenses.json).
 It corrects errors by applying the following corrections:
-$(SPDX_CORRECTIONS)
+
+$SPDX_CORRECTIONS
+
 It refreshes the data if data has been previously collected.
 The table metadata is recorded.
 

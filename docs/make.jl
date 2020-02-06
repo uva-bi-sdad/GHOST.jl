@@ -1,6 +1,7 @@
 push!(LOAD_PATH, joinpath("..", "src"))
 
 using Documenter, OSSGH
+using OSSGH: BaseUtils, Licenses
 
 DocMeta.setdocmeta!(OSSGH,
                     :DocTestSetup,
@@ -13,8 +14,7 @@ makedocs(sitename = "OSSGH",
              "Home" => "index.md",
              "Manual" => "manual.md",
              "API" => "api.md"
-         ],
-         doctest = false
+         ]
 )
 
 deploydocs(repo = "github.com/uva-bi-sdad/OSSGH.jl.git",
