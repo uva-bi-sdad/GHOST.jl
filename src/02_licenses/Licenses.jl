@@ -76,7 +76,20 @@ julia> execute(opt.conn,
 │ 5   │ Artistic License 2.0                            │ Artistic-2.0 │
 │ 6   │ BSD 2-Clause "Simplified" License               │ BSD-2-Clause │
 │ 7   │ BSD 3-Clause "New" or "Revised" License         │ BSD-3-Clause │
-⋮
+│ 8   │ Boost Software License 1.0                      │ BSL-1.0      │
+│ 9   │ CeCILL Free Software License Agreement v2.1     │ CECILL-2.1   │
+│ 10  │ Educational Community License v2.0              │ ECL-2.0      │
+│ 11  │ Eclipse Public License 1.0                      │ EPL-1.0      │
+│ 12  │ Eclipse Public License 2.0                      │ EPL-2.0      │
+│ 13  │ European Union Public License 1.2               │ EUPL-1.2     │
+│ 14  │ GNU General Public License v2.0 only            │ GPL-2.0      │
+│ 15  │ GNU General Public License v3.0 only            │ GPL-3.0      │
+│ 16  │ ISC License                                     │ ISC          │
+│ 17  │ GNU Lesser General Public License v2.1 only     │ LGPL-2.1     │
+│ 18  │ GNU Lesser General Public License v3.0 only     │ LGPL-3.0     │
+│ 19  │ LaTeX Project Public License v1.3c              │ LPPL-1.3c    │
+│ 20  │ MIT License                                     │ MIT          │
+│ 21  │ Mozilla Public License 2.0                      │ MPL-2.0      │
 │ 22  │ Microsoft Public License                        │ MS-PL        │
 │ 23  │ Microsoft Reciprocal License                    │ MS-RL        │
 │ 24  │ University of Illinois/NCSA Open Source License │ NCSA         │
