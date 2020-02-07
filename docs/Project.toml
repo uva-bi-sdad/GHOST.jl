@@ -1,9 +1,6 @@
 [deps]
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [compat]
-DataFrames = "0.20"
 Documenter = "0.24"
 julia = "1"
