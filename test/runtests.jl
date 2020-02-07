@@ -7,6 +7,7 @@ ENV["POSTGIS_PORT"] = get(ENV, "POSTGIS_PORT", "5432")
 DocMeta.setdocmeta!(OSSGH,
                     :DocTestSetup,
                     :(using OSSGH, DataFrames, Printf;
+                      using DataFrames: DataFrame;
                       opt = Opt("Nosferican",
                                 ENV["GITHUB_TOKEN"],
                                 host = ENV["POSTGIS_HOST"],
