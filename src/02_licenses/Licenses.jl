@@ -66,25 +66,25 @@ julia> execute(opt.conn,
                not_null = true) |>
            DataFrame
 29×2 DataFrames.DataFrame
-│ │ Row │ name                                            │ spdx         │
-│ │     │ String                                          │ String       │
-│ ├─────┼─────────────────────────────────────────────────┼──────────────┤
-│ │ 1   │ BSD Zero Clause License                         │ 0BSD         │
-│ │ 2   │ Academic Free License v3.0                      │ AFL-3.0      │
-│ │ 3   │ GNU Affero General Public License v3.0          │ AGPL-3.0     │
-│ │ 4   │ Apache License 2.0                              │ Apache-2.0   │
-│ │ 5   │ Artistic License 2.0                            │ Artistic-2.0 │
-│ │ 6   │ BSD 2-Clause "Simplified" License               │ BSD-2-Clause │
-│ │ 7   │ BSD 3-Clause "New" or "Revised" License         │ BSD-3-Clause │
-│ ⋮
-│ │ 22  │ Microsoft Public License                        │ MS-PL        │
-│ │ 23  │ Microsoft Reciprocal License                    │ MS-RL        │
-│ │ 24  │ University of Illinois/NCSA Open Source License │ NCSA         │
-│ │ 25  │ SIL Open Font License 1.1                       │ OFL-1.1      │
-│ │ 26  │ Open Software License 3.0                       │ OSL-3.0      │
-│ │ 27  │ PostgreSQL License                              │ PostgreSQL   │
-│ │ 28  │ Universal Permissive License v1.0               │ UPL-1.0      │
-│ │ 29  │ zlib License                                    │ Zlib         │
+│ Row │ name                                            │ spdx         │
+│     │ String                                          │ String       │
+├─────┼─────────────────────────────────────────────────┼──────────────┤
+│ 1   │ BSD Zero Clause License                         │ 0BSD         │
+│ 2   │ Academic Free License v3.0                      │ AFL-3.0      │
+│ 3   │ GNU Affero General Public License v3.0          │ AGPL-3.0     │
+│ 4   │ Apache License 2.0                              │ Apache-2.0   │
+│ 5   │ Artistic License 2.0                            │ Artistic-2.0 │
+│ 6   │ BSD 2-Clause "Simplified" License               │ BSD-2-Clause │
+│ 7   │ BSD 3-Clause "New" or "Revised" License         │ BSD-3-Clause │
+⋮
+│ 22  │ Microsoft Public License                        │ MS-PL        │
+│ 23  │ Microsoft Reciprocal License                    │ MS-RL        │
+│ 24  │ University of Illinois/NCSA Open Source License │ NCSA         │
+│ 25  │ SIL Open Font License 1.1                       │ OFL-1.1      │
+│ 26  │ Open Software License 3.0                       │ OSL-3.0      │
+│ 27  │ PostgreSQL License                              │ PostgreSQL   │
+│ 28  │ Universal Permissive License v1.0               │ UPL-1.0      │
+│ 29  │ zlib License                                    │ Zlib         │
 
 julia> execute(opt.conn,
                @sprintf("SELECT obj_description('%s.licenses'::regclass);", opt.schema)) |>
