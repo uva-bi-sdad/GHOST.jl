@@ -35,8 +35,6 @@ GitHub uses the Ruby Gem [Licensee](https://licensee.github.io/licensee/) for sy
 
 The following licenses are both GitHub/Licensee detectable and OSI-approved.
 
-const licenses = 
-
 **Name**|**SPDX**
 :-----:|:-----:
 BSD Zero Clause License|0BSD
