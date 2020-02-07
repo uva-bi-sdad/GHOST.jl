@@ -1,3 +1,3 @@
 # OSSGH.jl
 
-A tool for collecting GitHub data about open source repositories and contributors.
+A tool for collecting GitHub commit data about open source repositories.

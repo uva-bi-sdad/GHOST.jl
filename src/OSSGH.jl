@@ -3,7 +3,7 @@
 
 This is a module for collecting GitHub data about open source repositories and contributors.
 """
-module OSSGH    
+module OSSGH
 for (root, dirs, files) ∈ walkdir(joinpath(@__DIR__))
     for dir ∈ dirs
         files = readdir(joinpath(root, dir))

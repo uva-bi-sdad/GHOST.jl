@@ -190,7 +190,7 @@ function graphql(obj::GitHubPersonalAccessToken,
     end
 end
 """
-    OPT(login::AbstractString,
+    Opt(login::AbstractString,
         token::AbstractString;
         db_usr::AbstractString = "postgres",
         db_pwd::AbstractString = "postgres",
@@ -199,7 +199,7 @@ end
         dbname::AbstractString = "postgres",
         schema::AbstractString = "github_api_2007_",
         role::AbstractString = "postgres"
-        )::OPT
+        )::Opt
 
 Structure for passing arguments to functions.
 
