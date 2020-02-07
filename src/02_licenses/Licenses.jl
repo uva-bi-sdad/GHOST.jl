@@ -91,17 +91,17 @@ julia> execute(opt.conn,
            (obj -> getproperty.(obj, :obj_description)[1]) |>
            println
 OSI-approved machine detectable licenses (i.e., Licensee).
-     The official list of Open Source Initiative (OSI) approved licenses is hosted at their website.
-     GitHub uses the Ruby Gem Licensee for systematically detecting the license of repositories
-           
-     References:
-     - https://opensource.org/licenses/alphabetical
-     - https://licensee.github.io/licensee/
-     - https://github.com/github/choosealicense.com/tree/gh-pages/_licenses (b509f7fa1f69213669f4b7e7c83d7037be8f55dd)
-     - https://raw.githubusercontent.com/spdx/license-list-data/master/json/licenses.json (v3.7-21-g958f9ac)
-     - https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository#detecting-a-license
-           
-     As of: 2020-02-07
+The official list of Open Source Initiative (OSI) approved licenses is hosted at their website.
+GitHub uses the Ruby Gem Licensee for systematically detecting the license of repositories.
+                 
+References:
+- https://opensource.org/licenses/alphabetical
+- https://licensee.github.io/licensee/
+- https://github.com/github/choosealicense.com/tree/gh-pages/_licenses (b509f7fa1f69213669f4b7e7c83d7037be8f55dd)
+- https://raw.githubusercontent.com/spdx/license-list-data/master/json/licenses.json (v3.7-21-g958f9ac)
+- https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository#detecting-a-license
+    
+As of: 2020-02-07
 
 julia> execute(opt.conn,
                @sprintf(\"\"\"SELECT column_name, data_type, col_description('%s.licenses'::regclass, ordinal_position)
