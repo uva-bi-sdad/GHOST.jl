@@ -65,7 +65,7 @@ julia> execute(opt.conn,
                string("SELECT name, spdx FROM ", opt.schema, ".licenses;"),
                not_null = true) |>
            DataFrame
-29×2 DataFrames.DataFrame
+29×2 DataFrame
 │ Row │ name                                            │ spdx         │
 │     │ String                                          │ String       │
 ├─────┼─────────────────────────────────────────────────┼──────────────┤
