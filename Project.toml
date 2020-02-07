@@ -3,7 +3,6 @@ uuid = "135e50b6-a2ae-4e53-8c0b-0f5659f9d0de"
 version = "0.1.0"
 
 [deps]
-Cascadia = "54eefc05-d75b-58de-a785-1a3403f0919f"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Diana = "070d9d8b-17a7-5814-83fa-42438ba5c6e0"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
