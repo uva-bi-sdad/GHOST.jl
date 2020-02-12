@@ -5,16 +5,26 @@ This is a module for collecting GitHub data about open source repositories and c
 """
 module OSSGH
 for (root, dirs, files) ∈ walkdir(joinpath(@__DIR__))
-    for dir ∈ dirs
-        files = readdir(joinpath(root, dir))
-        for file ∈ files
-            include(joinpath(root, dir, file))
-        end
+    for file ∈ files
+        isequal("OSSGH.jl", file) || include(joinpath(root, file))
     end
 end
-using .BaseUtils: Opt, setup, execute
-using .Licenses: upload_licenses
+using ..BaseUtils: Opt, setup
+using ..Licenses: licenses
+using ..Search: search
+using ..Repos: repos
+using ..Commits: commits
+
+using LibPQ: execute, Dates.DateTime, Intervals.Interval
+using Tables: rowtable
 export
-    Opt, setup, execute,
-    upload_licenses
+    Opt, setup,
+    licenses,
+    search,
+    repos,
+    commits,
+    execute,
+    DateTime,
+    Interval,
+    rowtable
 end

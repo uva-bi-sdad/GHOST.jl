@@ -30,73 +30,103 @@ const GITHUB_GRAPHQL_ENDPOINT = "https://api.github.com/graphql"
 GitHub GraphQL query.
 """
 const GITHUB_API_QUERY =
-"""
-query Search(\$license_created: String!) {
-    search(query: \$license_created, type: REPOSITORY) {
-        repositoryCount
+    """
+    query Search(\$license_created: String!) {
+        search(query: \$license_created, type: REPOSITORY) {
+            repositoryCount
+        }
     }
-}
 
-query Commits(\$owner: String!, \$name: String!, \$until: GitTimestamp!) {
-    repository(owner: \$owner, name: \$name) {
-        defaultBranchRef {
-            target {
-                ... on Commit {
-                    history(first: 15, until: \$until) {
-                        ...CommitData
+    query Repo(\$license_created: String!) {
+        search(query: \$license_created, type: REPOSITORY, first: 100) {
+            ...SearchLogic
+        }
+    }
+
+    query RepoContinue(\$license_created: String!, \$cursor: String!) {
+        search(query: \$license_created, type: REPOSITORY, first: 100, after: \$cursor) {
+            ...SearchLogic
+        }
+    }
+
+    fragment SearchLogic on SearchResultItemConnection {
+        pageInfo {
+            endCursor
+        }
+        nodes {
+            ... on Repository {
+                nameWithOwner
+                createdAt
+            }
+        }
+    }
+
+    query RepoVerify(\$license_created: String!) {
+        search(query: \$license_created, type: REPOSITORY) {
+            repositoryCount
+        }
+    }
+
+    query Commits(\$owner: String!, \$name: String!, \$since: GitTimestamp!, \$until: GitTimestamp!, \$first: Int!) {
+        repository(owner: \$owner, name: \$name) {
+            defaultBranchRef {
+                target {
+                    ... on Commit {
+                        history(since: \$since, until: \$until, first: \$first) {
+                            ...CommitData
+                        }
                     }
                 }
             }
         }
     }
-}
 
-query CommitsContinue(\$owner: String!, \$name: String!, \$until: GitTimestamp!, \$cursor: String!) {
-    repository(owner: \$owner, name: \$name) {
-        defaultBranchRef {
-            target {
-                ... on Commit {
-                    history(first: 15, until: \$until, after: \$cursor) {
-                        ...CommitData
+    query CommitsContinue(\$owner: String!, \$name: String!, \$since: GitTimestamp!, \$until: GitTimestamp!, \$cursor: String!, \$first: Int!) {
+        repository(owner: \$owner, name: \$name) {
+            defaultBranchRef {
+                target {
+                    ... on Commit {
+                        history(since: \$since, until: \$until, after: \$cursor, first: \$first) {
+                            ...CommitData
+                        }
                     }
                 }
             }
         }
     }
-}
 
-query CommitsVerify(\$owner: String!, \$name: String!, \$until: GitTimestamp!) {
-    repository(owner: \$owner, name: \$name) {
-        defaultBranchRef {
-            target {
-                ... on Commit {
-                    history(until: \$until) {
-                        totalCount
+    query CommitsVerify(\$owner: String!, \$name: String!, \$since: GitTimestamp!, \$until: GitTimestamp!) {
+        repository(owner: \$owner, name: \$name) {
+            defaultBranchRef {
+                target {
+                    ... on Commit {
+                        history(since: \$since, until: \$until) {
+                            totalCount
+                        }
                     }
                 }
             }
         }
     }
-}
 
-fragment CommitData on CommitHistoryConnection {
-    pageInfo {
-        endCursor
-        hasNextPage
-    }
-    nodes {
-        author {
-            user {
-                login
-            }
+    fragment CommitData on CommitHistoryConnection {
+        pageInfo {
+            endCursor
+            hasNextPage
         }
-        oid
-        committedDate
-        additions
-        deletions
+        nodes {
+            author {
+                user {
+                    login
+                }
+            }
+            oid
+            committedDate
+            additions
+            deletions
+        }
     }
-}
-"""
+    """
 # Structs
 """
     Limits
@@ -183,11 +213,7 @@ function graphql(obj::GitHubPersonalAccessToken,
                               vars = vars)
     obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
     obj.limits.reset = unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"]))
-    json = JSON3.read(result.Data)
-    if haskey(json, :errors)
-        # if any(x.type == "NOT_FOUND" for x ∈ json.errors)
-        # end
-    end
+    result
 end
 """
     Opt(login::AbstractString,
@@ -208,6 +234,15 @@ Structure for passing arguments to functions.
 - `schema::String`
 - `role::String`
 - `pat::GitHubPersonalAccessToken`
+
+# Example
+```julia-repl
+julia> opt = Opt("Nosferican",
+                 ENV["GITHUB_TOKEN"],
+                 host = ENV["POSTGIS_HOST"],
+                 port = parse(Int, ENV["POSTGIS_PORT"]));
+
+```
 """
 struct Opt
     conn::Connection
@@ -240,6 +275,13 @@ end
     setup(opt::Opt)
 
 Sets up your PostgreSQL database for the project based on the options passed through the `Opt`.
+
+# Example
+
+```julia-repl
+julia> setup(opt)
+
+```
 """
 function setup(opt::Opt)
     @unpack conn, schema, role = opt
@@ -257,18 +299,18 @@ function setup(opt::Opt)
                   """)
     execute(conn, """CREATE TABLE IF NOT EXISTS $schema.spdx_queries (
                        spdx text NOT NULL,
-                       dtinterval text NOT NULL,
+                       created_query tsrange NOT NULL,
                        count integer NOT NULL,
                        status text NOT NULL,
-                       as_of timestamp with time zone NOT NULL,
-                       CONSTRAINT spdx_query UNIQUE (spdx, dtinterval)
+                       as_of timestamp without time zone NOT NULL,
+                       CONSTRAINT spdx_query UNIQUE (spdx, created_query)
                      );
                      ALTER TABLE $schema.spdx_queries OWNER TO $role;
                      COMMENT ON TABLE $schema.spdx_queries
                       IS 'This table is a tracker for queries';
                     COMMENT ON COLUMN $schema.spdx_queries.spdx
                       IS 'The SPDX license ID';
-                    COMMENT ON COLUMN $schema.spdx_queries.dtinterval
+                    COMMENT ON COLUMN $schema.spdx_queries.created_query
                       IS 'The time interval for the query';
                     COMMENT ON COLUMN $schema.spdx_queries.count
                       IS 'How many results for the query';
@@ -276,31 +318,34 @@ function setup(opt::Opt)
                       IS 'Status of the query';
                     COMMENT ON CONSTRAINT spdx_query ON $schema.spdx_queries
                       IS 'No duplicate for queries';
-                    CREATE INDEX spdx_queries_interval ON $schema.spdx_queries (dtinterval);
+                    CREATE INDEX spdx_queries_interval ON $schema.spdx_queries (created_query);
                     CREATE INDEX spdx_queries_spdx ON $schema.spdx_queries (spdx);
-                    CREATE INDEX spdx_queries_spdx_interval ON $schema.spdx_queries (spdx, dtinterval);
+                    CREATE INDEX spdx_queries_spdx_interval ON $schema.spdx_queries (spdx, created_query);
                     CREATE INDEX spdx_queries_status ON $schema.spdx_queries (status);
                  """)
     execute(conn, """CREATE TABLE IF NOT EXISTS $schema.repos (
                        slug text NOT NULL,
-                       id integer NOT NULL,
                        spdx text NOT NULL,
                        created timestamp without time zone NOT NULL,
                        as_of timestamp without time zone NOT NULL,
-                       dtinterval text NOT NULL,
+                       created_query tsrange NOT NULL,
                        status text NOT NULL,
                        CONSTRAINT repos_pkey PRIMARY KEY (slug)
                      );
                      ALTER TABLE $schema.repos OWNER TO $role;
                      COMMENT ON TABLE $schema.repos IS 'Basic information about the repositories';
-                     CREATE INDEX repos_interval ON $schema.repos (dtinterval);
+                     COMMENT ON COLUMN $schema.repos.created
+                      IS 'When was the repository created';
+                     COMMENT ON COLUMN $schema.repos.created_query
+                      IS 'The time interval for the query';
+                     CREATE INDEX repos_created ON $schema.repos (created);
                      CREATE INDEX repos_spdx ON $schema.repos (spdx);
-                     CREATE INDEX repos_spdx_interval ON $schema.repos (spdx, dtinterval);
+                     CREATE INDEX repos_spdx_interval ON $schema.repos (spdx, created_query);
                   """)
     execute(conn, """CREATE TABLE IF NOT EXISTS $schema.commits (
                        slug text NOT NULL,
                        hash text NOT NULL,
-                       datetime timestamp without time zone NOT NULL,
+                       committed_date timestamp without time zone NOT NULL,
                        login text,
                        additions integer NOT NULL,
                        deletions integer NOT NULL,
