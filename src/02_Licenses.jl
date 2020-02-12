@@ -42,7 +42,7 @@ const OSI_MACHINE_DETECTABLE_LICENSES = [
     (name = "zlib License", spdx = "Zlib")
 ]
 """
-    upload_licenses(opt::Opt)
+    licenses(opt::Opt)
 
 Creates the licenses table in the database.
 
@@ -51,14 +51,13 @@ The table metadata is recorded.
 # Example
 
 ```jldoctest
-julia> setup(opt)
-
-julia> upload_licenses(opt)
+julia> licenses(opt)
 PostgreSQL result
 
 julia> execute(opt.conn,
-               string("SELECT COUNT(*) = 29 as verify FROM ", opt.schema, ".licenses;")) |>
-           (obj -> getproperty.(obj, :verify)[1])
+               "SELECT COUNT(*) = 29 as verify FROM \$(opt.schema).licenses;") |>
+       rowtable |>
+       (data -> data[1].verify)
 true
 
 julia> execute(opt.conn,
@@ -120,7 +119,7 @@ julia> execute(opt.conn,
 
 ```
 """
-function upload_licenses(opt::Opt)
+function licenses(opt::Opt)
     @unpack conn, schema, role = opt
     isone(Int(status(conn))) && reset!(conn)
     # Create table if needed

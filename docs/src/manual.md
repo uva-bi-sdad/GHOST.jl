@@ -101,3 +101,17 @@ The `commits` table contains this data and is used to update the status of the r
 !!! note
 
     Commit users may show with a `NULL` login which indicates that the commit email does not match those associated with any GitHub account.
+
+!!! note
+
+    Commit timestamps sometimes may have have strange dates dating back before the creation of version control (usually the Epoch time). For those commits, we replace the value with the earliest commit date in that repository that seems valid.
+
+## How To Use
+
+In order to use this package, refer to the example in the [test suite](https://github.com/uva-bi-sdad/OSSGH.jl/blob/master/test/runtests.jl) and the [CI script](https://github.com/uva-bi-sdad/OSSGH.jl/blob/master/.github/workflows/ci.yml). The prefered solution is through a containerized application such as the CI using Docker but any environment with the required components will do.
+
+### Components
+
+- Internet Access
+- Julia v1 (current release v1.3.1)
+- A PostgreSQL database connection (tested with v11 and v12)
