@@ -208,11 +208,19 @@ function graphql(obj::GitHubPersonalAccessToken,
         sleep(max(obj.limits.reset - now(), 0))
         obj.limits.remaining = 5_000
     end
-    result = obj.client.Query(GITHUB_API_QUERY,
-                              operationName = operationName,
-                              vars = vars)
+    try
+        result = obj.client.Query(GITHUB_API_QUERY,
+                                  operationName = operationName,
+                                  vars = vars)
+    catch err
+        sleep(30)
+        result = obj.client.Query(GITHUB_API_QUERY,
+                                  operationName = operationName,
+                                  vars = vars)
+    end
     obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
     obj.limits.reset = unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"]))
+    sleep(1)
     result
 end
 """
@@ -355,5 +363,27 @@ function setup(opt::Opt)
                      CREATE INDEX commits_login ON $schema.commits (login);
                  """)
     nothing
+end
+
+function gh_errors(json, pat, operationName, vars, slug, since, until)
+    if haskey(json, :errors)
+        er = json.errors[1]
+        if startswith(er.message, "Something went wrong while executing your query.")
+            new_bulk_size = bulk_size ÷ 2
+            while true
+                result = graphql(pat,
+                                 operationName,
+                                 merge(vars, Dict("first" => new_bulk_size)))
+                json = JSON3.read(result.Data)
+                haskey(json, :errors) || break
+                new_bulk_size == 1 && throw(Error("Kept timing out!: $slug: $since..$until ($new_bulk_size)"))
+                new_bulk_size ÷= 2
+            end
+        else
+            println(er)
+            throw(Error("Something weird: $slug: $since..$until ($new_bulk_size)"))
+        end
+    end
+    json
 end
 end

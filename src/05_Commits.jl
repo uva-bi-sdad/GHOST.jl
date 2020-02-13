@@ -4,7 +4,7 @@
 Module for performing the commit data collection.
 """
 module Commits
-using ..BaseUtils: Opt, graphql
+using ..BaseUtils: Opt, graphql, gh_errors
 using Dates: DateTime, now, Year, Second, CompoundPeriod
 using HTTP: request
 using JSON3: JSON3, Object
@@ -59,37 +59,14 @@ function commits(opt::Opt,
     owner, name = split(slug, '/')
     since = DateTime("1970-01-01T00:00:00")
     until = floor(now(), Year)
-    result = graphql(pat,
-                     "Commits",
-                     Dict("owner" => owner,
-                          "name" => name,
-                          "since" => since,
-                          "until" => until,
-                          "first" => bulk_size))
+    vars = Dict("owner" => owner,
+                "name" => name,
+                "since" => since,
+                "until" => until,
+                "first" => bulk_size)
+    result = graphql(pat, "Commits", vars)
     json = JSON3.read(result.Data)
-    if haskey(json, :errors)
-        for er ∈ json.errors
-            if startswith(er.message, "Something went wrong while executing your query.")
-                new_bulk_size = bulk_size ÷ 2
-                while true
-                    result = graphql(pat,
-                                     "Commits",
-                                     Dict("owner" => owner,
-                                          "name" => name,
-                                          "since" => since,
-                                          "until" => until,
-                                          "first" => new_bulk_size))
-                    json = JSON3.read(result.Data)
-                    haskey(json, :errors) || break
-                    new_bulk_size == 1 && throw(Error("Kept timing out!: $slug: $since..$until ($new_bulk_size)"))
-                    new_bulk_size ÷= 2
-                end
-            else
-                println(er)
-                throw(Error("Something weird: $slug: $since..$until ($new_bulk_size)"))
-            end
-        end
-    end
+    json = gh_errors(json, pat, "Commits", vars, slug, since, until)
     as_of = DateTime(first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date")[1:end - 4],
                      "e, dd u Y HH:MM:SS")
     execute(conn, "BEGIN;")
@@ -98,38 +75,15 @@ function commits(opt::Opt,
            "INSERT INTO $schema.commits VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7) ON CONFLICT DO NOTHING;")
     execute(conn, "COMMIT;")
     while !isnothing(json.data.repository.defaultBranchRef.target.history.pageInfo.endCursor)
-        result = graphql(pat,
-                         "CommitsContinue",
-                         Dict("owner" => owner,
-                              "name" => name,
-                              "since" => since,
-                              "until" => until,
-                              "cursor" => json.data.repository.defaultBranchRef.target.history.pageInfo.endCursor,
-                              "first" => bulk_size))
+        vars = Dict("owner" => owner,
+                    "name" => name,
+                    "since" => since,
+                    "until" => until,
+                    "cursor" => json.data.repository.defaultBranchRef.target.history.pageInfo.endCursor,
+                    "first" => bulk_size)
+        result = graphql(pat, "CommitsContinue", vars)
         json = JSON3.read(result.Data)
-        if haskey(json, :errors)
-            for er ∈ json.errors
-                if startswith(er.message, "Something went wrong while executing your query.")
-                    new_bulk_size = bulk_size ÷ 2
-                    while true
-                        result = graphql(pat,
-                                         "Commits",
-                                         Dict("owner" => owner,
-                                              "name" => name,
-                                              "since" => since,
-                                              "until" => until,
-                                              "first" => new_bulk_size))
-                        json = JSON3.read(result.Data)
-                        haskey(json, :errors) || break
-                        new_bulk_size == 1 && throw(Error("Kept timing out!: $slug: $since..$until ($new_bulk_size)"))
-                        new_bulk_size ÷= 2
-                    end
-                else
-                    println(er)
-                    throw(Error("Something weird: $slug: $since..$until ($new_bulk_size)"))
-                end
-            end
-        end
+        json = gh_errors(json, pat, "CommitsContinue", vars, slug, since, until)
         as_of = DateTime(first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date")[1:end - 4],
                          "e, dd u Y HH:MM:SS")
         execute(conn, "BEGIN;")
