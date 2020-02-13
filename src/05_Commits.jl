@@ -81,8 +81,12 @@ function commits(opt::Opt,
                                           "first" => new_bulk_size))
                     json = JSON3.read(result.Data)
                     haskey(json, :errors) || break
-                    bulk_size == 1 || throw(Error("Kept timing out!: $slug: $since..$until"))
+                    new_bulk_size == 1 && throw(Error("Kept timing out!: $slug: $since..$until ($new_bulk_size)"))
+                    new_bulk_size ÷= 2
                 end
+            else
+                println(er)
+                throw(Error("Something weird: $slug: $since..$until ($new_bulk_size)"))
             end
         end
     end
@@ -103,6 +107,29 @@ function commits(opt::Opt,
                               "cursor" => json.data.repository.defaultBranchRef.target.history.pageInfo.endCursor,
                               "first" => bulk_size))
         json = JSON3.read(result.Data)
+        if haskey(json, :errors)
+            for er ∈ json.errors
+                if startswith(er.message, "Something went wrong while executing your query.")
+                    new_bulk_size = bulk_size ÷ 2
+                    while true
+                        result = graphql(pat,
+                                         "Commits",
+                                         Dict("owner" => owner,
+                                              "name" => name,
+                                              "since" => since,
+                                              "until" => until,
+                                              "first" => new_bulk_size))
+                        json = JSON3.read(result.Data)
+                        haskey(json, :errors) || break
+                        new_bulk_size == 1 && throw(Error("Kept timing out!: $slug: $since..$until ($new_bulk_size)"))
+                        new_bulk_size ÷= 2
+                    end
+                else
+                    println(er)
+                    throw(Error("Something weird: $slug: $since..$until ($new_bulk_size)"))
+                end
+            end
+        end
         as_of = DateTime(first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date")[1:end - 4],
                          "e, dd u Y HH:MM:SS")
         execute(conn, "BEGIN;")
