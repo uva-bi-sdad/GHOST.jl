@@ -30,7 +30,6 @@ function parse_repo(node::Object,
     deletions = deletions,
     as_of = as_of)
 end
-# slug = data[1].slug
 """
     commits(opt::Opt,
             slug::AbstractString)
@@ -54,63 +53,83 @@ true
 function commits(opt::Opt,
                  slug::AbstractString,
                  since::DateTime = DateTime("1970-01-01T00:00:00"),
-                 until::DateTime = floor(now(), Year))
-   @unpack conn, pat, schema = opt
-   owner, name = split(slug, '/')
-   since = DateTime("1970-01-01T00:00:00")
-   until = floor(now(), Year)
-   result = graphql(pat,
-                    "Commits",
-                    Dict("owner" => owner,
-                         "name" => name,
-                         "since" => since,
-                         "until" => until,
-                         "first" => 30))
-   json = JSON3.read(result.Data)
-   as_of = DateTime(first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date")[1:end - 4],
-                    "e, dd u Y HH:MM:SS")
-   execute(conn, "BEGIN;")
-   load!((parse_repo(node, slug, as_of) for node ∈ json.data.repository.defaultBranchRef.target.history.nodes),
-          conn,
-          "INSERT INTO $schema.commits VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7) ON CONFLICT DO NOTHING;")
-   execute(conn, "COMMIT;")
-   while !isnothing(json.data.repository.defaultBranchRef.target.history.pageInfo.endCursor)
-      result = graphql(pat,
-                       "CommitsContinue",
-                       Dict("owner" => owner,
-                            "name" => name,
-                            "since" => since,
-                            "until" => until,
-                            "cursor" => json.data.repository.defaultBranchRef.target.history.pageInfo.endCursor,
-                            "first" => 30))
-      json = JSON3.read(result.Data)
-      as_of = DateTime(first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date")[1:end - 4],
-                       "e, dd u Y HH:MM:SS")
-      execute(conn, "BEGIN;")
-      load!((parse_repo(node, slug, as_of) for node ∈ json.data.repository.defaultBranchRef.target.history.nodes),
-            conn,
-            "INSERT INTO $schema.commits VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7) ON CONFLICT DO NOTHING;")
-      execute(conn, "COMMIT;")
-   end
-   result = graphql(pat,
-                    "CommitsVerify",
-                    Dict("owner" => owner,
-                         "name" => name,
-                         "since" => since,
-                         "until" => until))
-   json = JSON3.read(result.Data)
-   total = json.data.repository.defaultBranchRef.target.history.totalCount
-   collected = getproperty.(execute(conn,
+                 until::DateTime = floor(now(), Year),
+                 bulk_size::Integer = 100)
+    @unpack conn, pat, schema = opt
+    owner, name = split(slug, '/')
+    since = DateTime("1970-01-01T00:00:00")
+    until = floor(now(), Year)
+    result = graphql(pat,
+                     "Commits",
+                     Dict("owner" => owner,
+                          "name" => name,
+                          "since" => since,
+                          "until" => until,
+                          "first" => bulk_size))
+    json = JSON3.read(result.Data)
+    if haskey(json, :errors)
+        for er ∈ json.errors
+            if startswith(er.message, "Something went wrong while executing your query.")
+                new_bulk_size = bulk_size ÷ 2
+                while true
+                    result = graphql(pat,
+                                     "Commits",
+                                     Dict("owner" => owner,
+                                          "name" => name,
+                                          "since" => since,
+                                          "until" => until,
+                                          "first" => new_bulk_size))
+                    json = JSON3.read(result.Data)
+                    haskey(json, :errors) || break
+                    bulk_size == 1 || throw(Error("Kept timing out!: $slug: $since..$until"))
+                end
+            end
+        end
+    end
+    as_of = DateTime(first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date")[1:end - 4],
+                     "e, dd u Y HH:MM:SS")
+    execute(conn, "BEGIN;")
+    load!((parse_repo(node, slug, as_of) for node ∈ json.data.repository.defaultBranchRef.target.history.nodes),
+           conn,
+           "INSERT INTO $schema.commits VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7) ON CONFLICT DO NOTHING;")
+    execute(conn, "COMMIT;")
+    while !isnothing(json.data.repository.defaultBranchRef.target.history.pageInfo.endCursor)
+        result = graphql(pat,
+                         "CommitsContinue",
+                         Dict("owner" => owner,
+                              "name" => name,
+                              "since" => since,
+                              "until" => until,
+                              "cursor" => json.data.repository.defaultBranchRef.target.history.pageInfo.endCursor,
+                              "first" => bulk_size))
+        json = JSON3.read(result.Data)
+        as_of = DateTime(first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date")[1:end - 4],
+                         "e, dd u Y HH:MM:SS")
+        execute(conn, "BEGIN;")
+        load!((parse_repo(node, slug, as_of) for node ∈ json.data.repository.defaultBranchRef.target.history.nodes),
+              conn,
+              "INSERT INTO $schema.commits VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7) ON CONFLICT DO NOTHING;")
+        execute(conn, "COMMIT;")
+    end
+    result = graphql(pat,
+                     "CommitsVerify",
+                     Dict("owner" => owner,
+                          "name" => name,
+                          "since" => since,
+                          "until" => until))
+    json = JSON3.read(result.Data)
+    total = json.data.repository.defaultBranchRef.target.history.totalCount
+    collected = getproperty.(execute(conn,
                                     """SELECT COUNT(*) FROM $schema.commits
                                        WHERE slug = '$slug'
                                        ;
                                     """),
                             :count)[1]
-   execute(conn,
-           """UPDATE $schema.repos
-              SET status = '$(collected ≥ total ? "Done" : "Error")'
-              WHERE slug = '$slug'
-              ;
-           """)
+    execute(conn,
+            """UPDATE $schema.repos
+               SET status = '$(collected ≥ total ? "Done" : "Error")'
+               WHERE slug = '$slug'
+               ;
+            """)
 end
 end

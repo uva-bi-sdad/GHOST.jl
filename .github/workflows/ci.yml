@@ -34,11 +34,10 @@ jobs:
   ci:
     services:
       postgres:
-        image: postgres:12.1-alpine
+        image: nosferican/postgres
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
         ports:
           - 5432/tcp
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5

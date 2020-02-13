@@ -285,8 +285,7 @@ julia> setup(opt)
 """
 function setup(opt::Opt)
     @unpack conn, schema, role = opt
-    getproperty.(execute(conn, "SELECT COUNT(*) = 1 AS check FROM information_schema.schemata WHERE schema_name = '$schema';"),
-                 :check)[1] && return
+    execute(conn, "CREATE EXTENSION IF NOT EXISTS btree_gist;")
     getproperty.(execute(conn, "SELECT COUNT(*) = 1 AS check FROM pg_roles WHERE rolname = '$role';"),
                  :check)[1] || execute(conn, "CREATE ROLE $role;")
     execute(conn, "CREATE SCHEMA IF NOT EXISTS $schema AUTHORIZATION $role;")
@@ -318,9 +317,9 @@ function setup(opt::Opt)
                       IS 'Status of the query';
                     COMMENT ON CONSTRAINT spdx_query ON $schema.spdx_queries
                       IS 'No duplicate for queries';
-                    CREATE INDEX spdx_queries_interval ON $schema.spdx_queries (created_query);
+                    CREATE INDEX spdx_queries_interval ON $schema.spdx_queries USING GIST (created_query);
                     CREATE INDEX spdx_queries_spdx ON $schema.spdx_queries (spdx);
-                    CREATE INDEX spdx_queries_spdx_interval ON $schema.spdx_queries (spdx, created_query);
+                    CREATE INDEX spdx_queries_spdx_interval ON $schema.spdx_queries USING GIST (spdx, created_query);
                     CREATE INDEX spdx_queries_status ON $schema.spdx_queries (status);
                  """)
     execute(conn, """CREATE TABLE IF NOT EXISTS $schema.repos (
@@ -340,7 +339,7 @@ function setup(opt::Opt)
                       IS 'The time interval for the query';
                      CREATE INDEX repos_created ON $schema.repos (created);
                      CREATE INDEX repos_spdx ON $schema.repos (spdx);
-                     CREATE INDEX repos_spdx_interval ON $schema.repos (spdx, created_query);
+                     CREATE INDEX repos_spdx_interval ON $schema.repos USING GIST (spdx, created_query);
                   """)
     execute(conn, """CREATE TABLE IF NOT EXISTS $schema.commits (
                        slug text NOT NULL,
