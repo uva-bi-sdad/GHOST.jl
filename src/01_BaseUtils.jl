@@ -374,7 +374,7 @@ function gh_errors(json, pat, operationName, vars, slug, since, until)
     if haskey(json, :errors)
         er = json.errors[1]
         if startswith(er.message, "Something went wrong while executing your query.")
-            new_bulk_size = bulk_size ÷ 2
+            new_bulk_size = vars["first"] ÷ 2
             while true
                 result = graphql(pat,
                                  operationName,
