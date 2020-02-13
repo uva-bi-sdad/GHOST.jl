@@ -208,15 +208,20 @@ function graphql(obj::GitHubPersonalAccessToken,
         sleep(max(obj.limits.reset - now(), 0))
         obj.limits.remaining = 5_000
     end
-    try
-        result = obj.client.Query(GITHUB_API_QUERY,
-                                  operationName = operationName,
-                                  vars = vars)
+    result = try
+        obj.client.Query(GITHUB_API_QUERY,
+                         operationName = operationName,
+                         vars = vars)
     catch err
-        sleep(30)
-        result = obj.client.Query(GITHUB_API_QUERY,
-                                  operationName = operationName,
-                                  vars = vars)
+        if isone(obj.limits.remaining)
+            sleep(max(obj.limits.reset - now(), 0))
+            obj.limits.remaining = 5_000
+        else
+            sleep(30)
+        end
+        obj.client.Query(GITHUB_API_QUERY,
+                         operationName = operationName,
+                         vars = vars)
     end
     obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
     obj.limits.reset = unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"]))
