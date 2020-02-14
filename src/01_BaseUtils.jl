@@ -218,6 +218,7 @@ function graphql(obj::GitHubPersonalAccessToken,
             obj.limits.remaining = 5_000
         else
             sleep(30)
+            println("$vars: graphql")
         end
         obj.client.Query(GITHUB_API_QUERY,
                          operationName = operationName,
@@ -397,7 +398,10 @@ function gh_errors(json, pat, operationName, vars)
                                  merge(vars, Dict("first" => new_bulk_size)))
                 json = JSON3.read(result.Data)
                 haskey(json, :errors) || break
-                new_bulk_size == 1 && throw(TIMEOUT(slug, vars))
+                if new_bulk_size == 1
+                    println("$slug: TIMEOUT")
+                    throw(TIMEOUT(slug, vars))
+                end
                 new_bulk_size ÷= 2
             end
         elseif er.type == "NOT_FOUND"
@@ -405,6 +409,7 @@ function gh_errors(json, pat, operationName, vars)
         elseif er.type == "SERVICE_UNAVAILABLE"
             return SERVICE_UNAVAILABLE(slug)
         else
+            println("$slug: UNKNOWN")
             throw(UNKNOWN(er, slug, vars))
         end
     end
