@@ -1,5 +1,6 @@
 using Test, Documenter, OSSGH
-
+using OSSGH
+# using OSSGH.BaseUtils: graphql, gh_errors, handle_errors
 ENV["POSTGIS_HOST"] = get(ENV, "POSTGIS_HOST", "host.docker.internal")
 ENV["POSTGIS_PORT"] = get(ENV, "POSTGIS_PORT", "5432")
 ENV["GITHUB_TOKEN"] = get(ENV, "GITHUB_TOKEN", "")
@@ -52,6 +53,19 @@ end
                   "SELECT COUNT(*) = 1 AS ok FROM $(opt.schema).repos WHERE status = 'Done';") |>
           rowtable |>
           (data -> data[1].ok)
+    execute(opt.conn, "UPDATE $(opt.schema).repos SET status = 'Initiated'";)
+    execute(opt.conn,
+            """DELETE FROM $(opt.schema).commits
+               WHERE committed_date <=
+                 (SELECT percentile_disc(0.5) WITHIN GROUP (ORDER BY committed_date ASC) AS median
+               FROM $(opt.schema).commits);
+            """)
+    foreach(row -> commits(opt, row...), data)
+    @test execute(opt.conn,
+                  "SELECT COUNT(*) = 1 AS ok FROM $(opt.schema).repos WHERE status = 'Done';",
+                  not_null = true) |>
+        rowtable |>
+        (data -> data[1].ok)
 end
 @testset "Documentation" begin
     using Documenter, OSSGH
