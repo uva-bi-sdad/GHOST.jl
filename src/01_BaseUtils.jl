@@ -220,9 +220,13 @@ function graphql(obj::GitHubPersonalAccessToken,
             sleep(30)
             println("$vars: graphql")
         end
-        obj.client.Query(GITHUB_API_QUERY,
-                         operationName = operationName,
-                         vars = vars)
+        try 
+            obj.client.Query(GITHUB_API_QUERY,
+                             operationName = operationName,
+                             vars = vars)
+        catch err
+            return err
+        end
     end
     obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
     obj.limits.reset = unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"]))
@@ -386,7 +390,8 @@ struct UNKNOWN{T} <: GH_ERROR
     slug::String
     vars::Dict{String}
 end
-function gh_errors(json, pat, operationName, vars)
+function gh_errors(result, pat, operationName, vars)
+    json = JSON3.read(result.Data)
     if haskey(json, :errors)
         er = json.errors[1]
         slug = "$(vars["owner"])/$(vars["name"])"
@@ -400,7 +405,7 @@ function gh_errors(json, pat, operationName, vars)
                 haskey(json, :errors) || break
                 if new_bulk_size == 1
                     println("$slug: TIMEOUT")
-                    throw(TIMEOUT(slug, vars))
+                    TIMEOUT(slug, vars)
                 end
                 new_bulk_size ÷= 2
             end
@@ -410,12 +415,17 @@ function gh_errors(json, pat, operationName, vars)
             return SERVICE_UNAVAILABLE(slug)
         else
             println("$slug: UNKNOWN")
-            throw(UNKNOWN(er, slug, vars))
+            UNKNOWN(er, slug, vars)
         end
     end
     json
 end
+gh_errors(result::Exception, pat, operationName, vars) = result
 handle_errors(opt::Opt, obj) = false
+function handle_errors(opt::Opt, obj::Exception)
+    println(obj)
+    true
+end
 function handle_errors(opt::Opt, obj::GH_ERROR)
     execute(opt.conn, "UPDATE $(opt.schema).repos SET status = '$(typeof(obj))' WHERE slug = '$(obj.slug)';")
     true

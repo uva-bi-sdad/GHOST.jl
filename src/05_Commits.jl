@@ -83,8 +83,7 @@ function commits(opt::Opt,
                          merge(vars,
                                Dict("since" => data.committed_date,
                                     "until" => data.committed_date)))
-        json = JSON3.read(result.Data)
-        json = gh_errors(json, pat, "Commits", vars)
+        json = gh_errors(result, pat, "Commits", vars)
         handle_errors(opt, json) && return
         if any(x.oid == data.hash for x ∈ json.data.repository.defaultBranchRef.target.history.nodes)
             vars["until"] = first(node.committedDate for node ∈
@@ -94,8 +93,7 @@ function commits(opt::Opt,
         end
     end
     result = graphql(pat, "Commits", vars)
-    json = JSON3.read(result.Data)
-    json = gh_errors(json, pat, "Commits", vars)
+    json = gh_errors(result, pat, "Commits", vars)
     handle_errors(opt, json) && return
     as_of = ZonedDateTime(first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date"),
                           "e, dd u Y HH:MM:SS ZZZ")
@@ -112,8 +110,7 @@ function commits(opt::Opt,
                     "cursor" => json.data.repository.defaultBranchRef.target.history.pageInfo.endCursor,
                     "first" => bulk_size)
         result = graphql(pat, "CommitsContinue", vars)
-        json = JSON3.read(result.Data)
-        json = gh_errors(json, pat, "CommitsContinue", vars)
+        json = gh_errors(result, pat, "CommitsContinue", vars)
         handle_errors(opt, json) && return
         if isnothing(json)
             execute(conn,
@@ -138,7 +135,8 @@ function commits(opt::Opt,
                           "name" => name,
                           "since" => since,
                           "until" => until))
-    json = JSON3.read(result.Data)
+    json = gh_errors(result, pat, "CommitsVerify", vars)
+    handle_errors(opt, json) && return
     total = json.data.repository.defaultBranchRef.target.history.totalCount
     collected = getproperty.(execute(conn,
                                     """SELECT COUNT(*) FROM $schema.commits
