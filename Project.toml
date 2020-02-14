@@ -18,7 +18,7 @@ HTTP = "0.8"
 JSON3 = "0.1"
 LibPQ = "1"
 Parameters = "0.12"
-Tables = "0.2"
+Tables = "0.2, 1"
 TimeZones = "1"
 julia = "1"
 

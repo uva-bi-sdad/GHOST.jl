@@ -208,11 +208,25 @@ function graphql(obj::GitHubPersonalAccessToken,
         sleep(max(obj.limits.reset - now(), 0))
         obj.limits.remaining = 5_000
     end
-    result = obj.client.Query(GITHUB_API_QUERY,
-                              operationName = operationName,
-                              vars = vars)
+    result = try
+        obj.client.Query(GITHUB_API_QUERY,
+                         operationName = operationName,
+                         vars = vars)
+    catch err
+        if isone(obj.limits.remaining)
+            sleep(max(obj.limits.reset - now(), 0))
+            obj.limits.remaining = 5_000
+        else
+            sleep(30)
+            println("$vars: graphql")
+        end
+        obj.client.Query(GITHUB_API_QUERY,
+                         operationName = operationName,
+                         vars = vars)
+    end
     obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
     obj.limits.reset = unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"]))
+    sleep(1)
     result
 end
 """
@@ -285,8 +299,7 @@ julia> setup(opt)
 """
 function setup(opt::Opt)
     @unpack conn, schema, role = opt
-    getproperty.(execute(conn, "SELECT COUNT(*) = 1 AS check FROM information_schema.schemata WHERE schema_name = '$schema';"),
-                 :check)[1] && return
+    execute(conn, "CREATE EXTENSION IF NOT EXISTS btree_gist;")
     getproperty.(execute(conn, "SELECT COUNT(*) = 1 AS check FROM pg_roles WHERE rolname = '$role';"),
                  :check)[1] || execute(conn, "CREATE ROLE $role;")
     execute(conn, "CREATE SCHEMA IF NOT EXISTS $schema AUTHORIZATION $role;")
@@ -302,7 +315,7 @@ function setup(opt::Opt)
                        created_query tsrange NOT NULL,
                        count integer NOT NULL,
                        status text NOT NULL,
-                       as_of timestamp without time zone NOT NULL,
+                       as_of timestamp with time zone NOT NULL,
                        CONSTRAINT spdx_query UNIQUE (spdx, created_query)
                      );
                      ALTER TABLE $schema.spdx_queries OWNER TO $role;
@@ -318,16 +331,16 @@ function setup(opt::Opt)
                       IS 'Status of the query';
                     COMMENT ON CONSTRAINT spdx_query ON $schema.spdx_queries
                       IS 'No duplicate for queries';
-                    CREATE INDEX spdx_queries_interval ON $schema.spdx_queries (created_query);
+                    CREATE INDEX spdx_queries_interval ON $schema.spdx_queries USING GIST (created_query);
                     CREATE INDEX spdx_queries_spdx ON $schema.spdx_queries (spdx);
-                    CREATE INDEX spdx_queries_spdx_interval ON $schema.spdx_queries (spdx, created_query);
+                    CREATE INDEX spdx_queries_spdx_interval ON $schema.spdx_queries USING GIST (spdx, created_query);
                     CREATE INDEX spdx_queries_status ON $schema.spdx_queries (status);
                  """)
     execute(conn, """CREATE TABLE IF NOT EXISTS $schema.repos (
                        slug text NOT NULL,
                        spdx text NOT NULL,
-                       created timestamp without time zone NOT NULL,
-                       as_of timestamp without time zone NOT NULL,
+                       created timestamp with time zone NOT NULL,
+                       as_of timestamp with time zone NOT NULL,
                        created_query tsrange NOT NULL,
                        status text NOT NULL,
                        CONSTRAINT repos_pkey PRIMARY KEY (slug)
@@ -340,21 +353,71 @@ function setup(opt::Opt)
                       IS 'The time interval for the query';
                      CREATE INDEX repos_created ON $schema.repos (created);
                      CREATE INDEX repos_spdx ON $schema.repos (spdx);
-                     CREATE INDEX repos_spdx_interval ON $schema.repos (spdx, created_query);
+                     CREATE INDEX repos_spdx_interval ON $schema.repos USING GIST (spdx, created_query);
                   """)
     execute(conn, """CREATE TABLE IF NOT EXISTS $schema.commits (
                        slug text NOT NULL,
                        hash text NOT NULL,
-                       committed_date timestamp without time zone NOT NULL,
+                       committed_date timestamp with time zone NOT NULL,
                        login text,
                        additions integer NOT NULL,
                        deletions integer NOT NULL,
-                       as_of timestamp without time zone NOT NULL,
+                       as_of timestamp with time zone NOT NULL,
                        CONSTRAINT commits_pkey PRIMARY KEY (slug, hash)
                      );
                      ALTER TABLE $schema.commits OWNER TO $role;
                      CREATE INDEX commits_login ON $schema.commits (login);
                  """)
     nothing
+end
+abstract type GH_ERROR <: Exception end
+struct NOT_FOUND <: GH_ERROR
+    slug::String
+end
+struct TIMEOUT <: GH_ERROR
+    slug::String
+    vars::Dict{String}
+end
+struct SERVICE_UNAVAILABLE <: GH_ERROR
+    slug::String
+end
+struct UNKNOWN{T} <: GH_ERROR
+    er::T
+    slug::String
+    vars::Dict{String}
+end
+function gh_errors(json, pat, operationName, vars)
+    if haskey(json, :errors)
+        er = json.errors[1]
+        slug = "$(vars["owner"])/$(vars["name"])"
+        if startswith(er.message, "Something went wrong while executing your query.")
+            new_bulk_size = vars["first"] ÷ 2
+            while true
+                result = graphql(pat,
+                                 operationName,
+                                 merge(vars, Dict("first" => new_bulk_size)))
+                json = JSON3.read(result.Data)
+                haskey(json, :errors) || break
+                if new_bulk_size == 1
+                    println("$slug: TIMEOUT")
+                    throw(TIMEOUT(slug, vars))
+                end
+                new_bulk_size ÷= 2
+            end
+        elseif er.type == "NOT_FOUND"
+            return NOT_FOUND(slug)
+        elseif er.type == "SERVICE_UNAVAILABLE"
+            return SERVICE_UNAVAILABLE(slug)
+        else
+            println("$slug: UNKNOWN")
+            throw(UNKNOWN(er, slug, vars))
+        end
+    end
+    json
+end
+handle_errors(opt::Opt, obj) = false
+function handle_errors(opt::Opt, obj::GH_ERROR)
+    execute(opt.conn, "UPDATE $(opt.schema).repos SET status = '$(typeof(obj))' WHERE slug = '$(obj.slug)';")
+    true
 end
 end
