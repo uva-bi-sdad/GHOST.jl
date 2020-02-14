@@ -56,7 +56,7 @@ end
     execute(opt.conn, "UPDATE $(opt.schema).repos SET status = 'Initiated'";)
     execute(opt.conn,
             """DELETE FROM $(opt.schema).commits
-               WHERE committed_date >=
+               WHERE committed_date <=
                  (SELECT percentile_disc(0.5) WITHIN GROUP (ORDER BY committed_date ASC) AS median
                FROM $(opt.schema).commits);
             """)
