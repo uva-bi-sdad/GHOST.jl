@@ -4,22 +4,24 @@
 Module for performing the commit data collection.
 """
 module Commits
-using ..BaseUtils: Opt, graphql, gh_errors
-using Dates: DateTime, now, Year, Second, CompoundPeriod
+using ..BaseUtils: Opt, graphql, gh_errors, handle_errors
+using Dates: now, Year, Second
 using HTTP: request
 using JSON3: JSON3, Object
 using LibPQ: Connection, Statement, execute, prepare, Intervals.Interval, load!, status
+using LibPQ.TimeZones: ZonedDateTime, TimeZone
 using Parameters: @unpack
+using Tables: rowtable
 """
     parse_repo(node::Object,
                slug::AbstractString,
-               as_of::DateTime)
+               as_of::ZonedDateTime)
 
 Return iterator for insertion into database.
 """
 function parse_repo(node::Object,
                     slug::AbstractString,
-                    as_of::DateTime)
+                    as_of::ZonedDateTime)
    # node = json.data.repository.defaultBranchRef.target.history.nodes[1]
    @unpack author, oid, committedDate, additions, deletions = node
    (slug = slug,
@@ -52,23 +54,51 @@ true
 """
 function commits(opt::Opt,
                  slug::AbstractString,
-                 since::DateTime = DateTime("1970-01-01T00:00:00"),
-                 until::DateTime = floor(now(), Year),
+                 since::ZonedDateTime = ZonedDateTime("1970-01-01T00:00:00.000+00:00"),
+                 until::ZonedDateTime = floor(now(TimeZone("UTC")), Year),
                  bulk_size::Integer = 100)
     @unpack conn, pat, schema = opt
+    # bulk_size = 100
     owner, name = split(slug, '/')
-    since = DateTime("1970-01-01T00:00:00")
-    until = floor(now(), Year)
+    # since = ZonedDateTime("1970-01-01T00:00:00.000+00:00")
+    # until = floor(now(TimeZone("UTC")), Year)
     vars = Dict("owner" => owner,
                 "name" => name,
                 "since" => since,
                 "until" => until,
                 "first" => bulk_size)
+    data = execute(conn,
+                   """SELECT hash, committed_date FROM $(opt.schema).commits
+                      WHERE slug = '$slug'
+                      ORDER BY committed_date ASC
+                      LIMIT 1
+                      ;
+                   """,
+                   not_null = true) |>
+        rowtable
+    if !isempty(data)
+        data = data[1]
+        result = graphql(pat,
+                         "Commits",
+                         merge(vars,
+                               Dict("since" => data.committed_date,
+                                    "until" => data.committed_date)))
+        json = JSON3.read(result.Data)
+        json = gh_errors(json, pat, "Commits", vars)
+        handle_errors(opt, json) && return
+        if any(x.oid == data.hash for x ∈ json.data.repository.defaultBranchRef.target.history.nodes)
+            vars["until"] = first(node.committedDate for node ∈
+                                  json.data.repository.defaultBranchRef.target.history.nodes
+                                  if node.oid == data.hash) |>
+                (obj -> ZonedDateTime(replace(obj, r"(?<=\d)Z$" => "UTC"), "yyyy-mm-ddTHH:MM:SSZZZ"))
+        end
+    end
     result = graphql(pat, "Commits", vars)
     json = JSON3.read(result.Data)
-    json = gh_errors(json, pat, "Commits", vars, slug, since, until)
-    as_of = DateTime(first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date")[1:end - 4],
-                     "e, dd u Y HH:MM:SS")
+    json = gh_errors(json, pat, "Commits", vars)
+    handle_errors(opt, json) && return
+    as_of = ZonedDateTime(first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date"),
+                          "e, dd u Y HH:MM:SS ZZZ")
     execute(conn, "BEGIN;")
     load!((parse_repo(node, slug, as_of) for node ∈ json.data.repository.defaultBranchRef.target.history.nodes),
            conn,
@@ -83,9 +113,19 @@ function commits(opt::Opt,
                     "first" => bulk_size)
         result = graphql(pat, "CommitsContinue", vars)
         json = JSON3.read(result.Data)
-        json = gh_errors(json, pat, "CommitsContinue", vars, slug, since, until)
-        as_of = DateTime(first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date")[1:end - 4],
-                         "e, dd u Y HH:MM:SS")
+        json = gh_errors(json, pat, "CommitsContinue", vars)
+        handle_errors(opt, json) && return
+        if isnothing(json)
+            execute(conn,
+                    """UPDATE $schema.repos
+                       SET status = 'NOT_FOUND'
+                       WHERE slug = '$slug'
+                       ;
+                    """)
+            return
+        end
+        as_of = ZonedDateTime(first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date"),
+                              "e, dd u Y HH:MM:SS ZZZ")
         execute(conn, "BEGIN;")
         load!((parse_repo(node, slug, as_of) for node ∈ json.data.repository.defaultBranchRef.target.history.nodes),
               conn,

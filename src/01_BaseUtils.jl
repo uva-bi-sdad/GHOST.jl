@@ -314,7 +314,7 @@ function setup(opt::Opt)
                        created_query tsrange NOT NULL,
                        count integer NOT NULL,
                        status text NOT NULL,
-                       as_of timestamp without time zone NOT NULL,
+                       as_of timestamp with time zone NOT NULL,
                        CONSTRAINT spdx_query UNIQUE (spdx, created_query)
                      );
                      ALTER TABLE $schema.spdx_queries OWNER TO $role;
@@ -338,8 +338,8 @@ function setup(opt::Opt)
     execute(conn, """CREATE TABLE IF NOT EXISTS $schema.repos (
                        slug text NOT NULL,
                        spdx text NOT NULL,
-                       created timestamp without time zone NOT NULL,
-                       as_of timestamp without time zone NOT NULL,
+                       created timestamp with time zone NOT NULL,
+                       as_of timestamp with time zone NOT NULL,
                        created_query tsrange NOT NULL,
                        status text NOT NULL,
                        CONSTRAINT repos_pkey PRIMARY KEY (slug)
@@ -357,11 +357,11 @@ function setup(opt::Opt)
     execute(conn, """CREATE TABLE IF NOT EXISTS $schema.commits (
                        slug text NOT NULL,
                        hash text NOT NULL,
-                       committed_date timestamp without time zone NOT NULL,
+                       committed_date timestamp with time zone NOT NULL,
                        login text,
                        additions integer NOT NULL,
                        deletions integer NOT NULL,
-                       as_of timestamp without time zone NOT NULL,
+                       as_of timestamp with time zone NOT NULL,
                        CONSTRAINT commits_pkey PRIMARY KEY (slug, hash)
                      );
                      ALTER TABLE $schema.commits OWNER TO $role;
@@ -369,10 +369,26 @@ function setup(opt::Opt)
                  """)
     nothing
 end
-
-function gh_errors(json, pat, operationName, vars, slug, since, until)
+abstract type GH_ERROR <: Exception end
+struct NOT_FOUND <: GH_ERROR
+    slug::String
+end
+struct TIMEOUT <: GH_ERROR
+    slug::String
+    vars::Dict{String}
+end
+struct SERVICE_UNAVAILABLE <: GH_ERROR
+    slug::String
+end
+struct UNKNOWN{T} <: GH_ERROR
+    er::T
+    slug::String
+    vars::Dict{String}
+end
+function gh_errors(json, pat, operationName, vars)
     if haskey(json, :errors)
         er = json.errors[1]
+        slug = "$(vars["owner"])/$(vars["name"])"
         if startswith(er.message, "Something went wrong while executing your query.")
             new_bulk_size = vars["first"] ÷ 2
             while true
@@ -381,14 +397,22 @@ function gh_errors(json, pat, operationName, vars, slug, since, until)
                                  merge(vars, Dict("first" => new_bulk_size)))
                 json = JSON3.read(result.Data)
                 haskey(json, :errors) || break
-                new_bulk_size == 1 && throw(Error("Kept timing out!: $slug: $since..$until ($new_bulk_size)"))
+                new_bulk_size == 1 && throw(TIMEOUT(slug, vars))
                 new_bulk_size ÷= 2
             end
+        elseif er.type == "NOT_FOUND"
+            return NOT_FOUND(slug)
+        elseif er.type == "SERVICE_UNAVAILABLE"
+            return SERVICE_UNAVAILABLE(slug)
         else
-            println(er)
-            throw(Error("Something weird: $slug: $since..$until ($new_bulk_size)"))
+            throw(UNKNOWN(er, slug, vars))
         end
     end
     json
+end
+handle_errors(opt::Opt, obj) = false
+function handle_errors(opt::Opt, obj::GH_ERROR)
+    execute(opt.conn, "UPDATE $(opt.schema).repos SET status = '$(typeof(obj))' WHERE slug = '$(obj.slug)';")
+    true
 end
 end
