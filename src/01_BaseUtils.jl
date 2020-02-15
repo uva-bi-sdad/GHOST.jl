@@ -217,7 +217,7 @@ function graphql(obj::GitHubPersonalAccessToken,
             sleep(max(obj.limits.reset - now(), 0))
             obj.limits.remaining = 5_000
         else
-            sleep(30)
+            sleep(5)
             println("$vars: graphql")
         end
         try 
@@ -230,7 +230,7 @@ function graphql(obj::GitHubPersonalAccessToken,
     end
     obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
     obj.limits.reset = unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"]))
-    sleep(1)
+    sleep(0.25)
     result
 end
 """
