@@ -34,7 +34,10 @@ function parse_repo(node::Object,
 end
 """
     commits(opt::Opt,
-            slug::AbstractString)
+            slug::AbstractString,
+            since::ZonedDateTime = ZonedDateTime("1970-01-01T00:00:00.000+00:00"),
+            until::ZonedDateTime = floor(now(TimeZone("UTC")), Year),
+            bulk_size::Integer = 32)
 
 Uploads the repository queries.
 
@@ -56,7 +59,7 @@ function commits(opt::Opt,
                  slug::AbstractString,
                  since::ZonedDateTime = ZonedDateTime("1970-01-01T00:00:00.000+00:00"),
                  until::ZonedDateTime = floor(now(TimeZone("UTC")), Year),
-                 bulk_size::Integer = 100)
+                 bulk_size::Integer = 32)
     @unpack conn, pat, schema = opt
     # bulk_size = 100
     owner, name = split(slug, '/')
