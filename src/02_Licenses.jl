@@ -39,7 +39,7 @@ const OSI_MACHINE_DETECTABLE_LICENSES = [
     (name = "Open Software License 3.0", spdx = "OSL-3.0"),
     (name = "PostgreSQL License", spdx = "PostgreSQL"),
     (name = "Universal Permissive License v1.0", spdx = "UPL-1.0"),
-    (name = "zlib License", spdx = "Zlib")
+    (name = "zlib License", spdx = "Zlib"),
 ]
 """
     licenses(opt::Opt)
@@ -123,30 +123,34 @@ function licenses(opt::Opt)
     @unpack conn, schema, role = opt
     isone(Int(status(conn))) && reset!(conn)
     # Create table if needed
-    execute(conn,
-            """
-            COMMENT ON TABLE $schema.licenses IS
-            'OSI-approved machine detectable licenses (i.e., Licensee).
-            The official list of Open Source Initiative (OSI) approved licenses is hosted at their website.
-            GitHub uses the Ruby Gem Licensee for systematically detecting the license of repositories.
-                             
-            References:
-            - https://opensource.org/licenses/alphabetical
-            - https://licensee.github.io/licensee/
-            - https://github.com/github/choosealicense.com/tree/gh-pages/_licenses (b509f7fa1f69213669f4b7e7c83d7037be8f55dd)
-            - https://raw.githubusercontent.com/spdx/license-list-data/master/json/licenses.json (v3.7-21-g958f9ac)
-            - https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository#detecting-a-license
-                
-            As of: 2020-02-07';
-            COMMENT ON COLUMN $schema.licenses.name IS 'Name of the license.';
-            COMMENT ON COLUMN $schema.licenses.spdx IS 'Software Package Data Exchange License ID';
-            ALTER TABLE $schema.licenses OWNER to $role;
-            """)
+    execute(
+        conn,
+        """
+        COMMENT ON TABLE $schema.licenses IS
+        'OSI-approved machine detectable licenses (i.e., Licensee).
+        The official list of Open Source Initiative (OSI) approved licenses is hosted at their website.
+        GitHub uses the Ruby Gem Licensee for systematically detecting the license of repositories.
+                         
+        References:
+        - https://opensource.org/licenses/alphabetical
+        - https://licensee.github.io/licensee/
+        - https://github.com/github/choosealicense.com/tree/gh-pages/_licenses (b509f7fa1f69213669f4b7e7c83d7037be8f55dd)
+        - https://raw.githubusercontent.com/spdx/license-list-data/master/json/licenses.json (v3.7-21-g958f9ac)
+        - https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository#detecting-a-license
+            
+        As of: 2020-02-07';
+        COMMENT ON COLUMN $schema.licenses.name IS 'Name of the license.';
+        COMMENT ON COLUMN $schema.licenses.spdx IS 'Software Package Data Exchange License ID';
+        ALTER TABLE $schema.licenses OWNER to $role;
+        """,
+    )
     execute(conn, "TRUNCATE $schema.licenses;")
     execute(conn, "BEGIN;")
-    load!(OSI_MACHINE_DETECTABLE_LICENSES,
-          conn,
-          "INSERT INTO $schema.licenses (name, spdx) VALUES (\$1, \$2) ON CONFLICT DO NOTHING;")
+    load!(
+        OSI_MACHINE_DETECTABLE_LICENSES,
+        conn,
+        "INSERT INTO $schema.licenses (name, spdx) VALUES (\$1, \$2) ON CONFLICT DO NOTHING;",
+    )
     execute(conn, "COMMIT;")
 end
 end
