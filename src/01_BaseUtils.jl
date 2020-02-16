@@ -227,7 +227,7 @@ function graphql(
             sleep(max(obj.limits.reset - now(), 0))
             obj.limits.remaining = 5_000
         else
-            sleep(0.2)
+            sleep(0.5)
             println("$vars: graphql")
         end
         try
@@ -238,7 +238,7 @@ function graphql(
     end
     obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
     obj.limits.reset = unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"]))
-    sleep(0.2)
+    sleep(1)
     result
 end
 """
