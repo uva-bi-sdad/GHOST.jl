@@ -3,13 +3,13 @@
 ## Public
 
 ```@autodocs
-Modules = [OSSGH, BaseUtils, Licenses, Search, Repos, Commits]
+Modules = [GHOSS, BaseUtils, Licenses, Search, Repos, Commits]
 Private = false
 ```
 
 ## Private
 
 ```@autodocs
-Modules = [OSSGH, BaseUtils, Licenses, Search, Repos, Commits]
+Modules = [GHOSS, BaseUtils, Licenses, Search, Repos, Commits]
 Public = false
 ```

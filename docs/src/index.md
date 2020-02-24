@@ -1,3 +1,3 @@
-# OSSGH.jl
+# GHOSS.jl
 
 A tool for collecting GitHub commit data about open source repositories.

@@ -1,12 +1,12 @@
 """
-    OSSGH
+    GHOSS
 
 This is a module for collecting GitHub data about open source repositories and contributors.
 """
-module OSSGH
+module GHOSS
 for (root, dirs, files) in walkdir(joinpath(@__DIR__))
     for file in files
-        isequal("OSSGH.jl", file) || include(joinpath(root, file))
+        isequal("GHOSS.jl", file) || include(joinpath(root, file))
     end
 end
 using ..BaseUtils: Opt, setup

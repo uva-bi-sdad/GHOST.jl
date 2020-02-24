@@ -1,6 +1,6 @@
-using Test, Documenter, OSSGH
-using OSSGH
-# using OSSGH.BaseUtils: graphql, gh_errors, handle_errors
+using Test, Documenter, GHOSS
+using GHOSS
+# using GHOSS.BaseUtils: graphql, gh_errors, handle_errors
 ENV["POSTGIS_HOST"] = get(ENV, "POSTGIS_HOST", "host.docker.internal")
 ENV["POSTGIS_PORT"] = get(ENV, "POSTGIS_PORT", "5432")
 ENV["GITHUB_TOKEN"] = get(ENV, "GITHUB_TOKEN", "")
@@ -68,19 +68,19 @@ end
         (data -> data[1].ok)
 end
 @testset "Documentation" begin
-    using Documenter, OSSGH
-    using OSSGH: BaseUtils, Licenses, Search, Repos, Commits
+    using Documenter, GHOSS
+    using GHOSS: BaseUtils, Licenses, Search, Repos, Commits
 
-    DocMeta.setdocmeta!(OSSGH,
+    DocMeta.setdocmeta!(GHOSS,
                        :DocTestSetup,
-                       :(using OSSGH, DataFrames, Printf;
+                       :(using GHOSS, DataFrames, Printf;
                         opt = Opt("Nosferican",
                                   ENV["GITHUB_TOKEN"],
                                   host = ENV["POSTGIS_HOST"],
                                   port = parse(Int, ENV["POSTGIS_PORT"]));),
                        recursive = true)
-    makedocs(sitename = "OSSGH",
-             modules = [OSSGH],
+    makedocs(sitename = "GHOSS",
+             modules = [GHOSS],
              pages = [
                  "Home" => "index.md",
                  "Manual" => "manual.md",

@@ -108,7 +108,7 @@ The `commits` table contains this data and is used to update the status of the r
 
 ## How To Use
 
-In order to use this package, refer to the example in the [test suite](https://github.com/uva-bi-sdad/OSSGH.jl/blob/master/test/runtests.jl) and the [CI script](https://github.com/uva-bi-sdad/OSSGH.jl/blob/master/.github/workflows/ci.yml). The prefered solution is through a containerized application such as the CI using Docker but any environment with the required components will do.
+In order to use this package, refer to the example in the [test suite](https://github.com/uva-bi-sdad/GHOSS.jl/blob/master/test/runtests.jl) and the [CI script](https://github.com/uva-bi-sdad/GHOSS.jl/blob/master/.github/workflows/ci.yml). The prefered solution is through a containerized application such as the CI using Docker but any environment with the required components will do.
 
 ### Components
 

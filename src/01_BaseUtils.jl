@@ -1,7 +1,7 @@
 """
     BaseUtils
 
-Module that provides the base utilities for OSSGH.
+Module that provides the base utilities for GHOSS.
 """
 module BaseUtils
 using Dates: DateTime, unix2datetime
