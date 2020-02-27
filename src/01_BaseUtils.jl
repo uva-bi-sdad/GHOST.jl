@@ -226,10 +226,9 @@ function graphql(
         if isone(obj.limits.remaining)
             sleep(max(obj.limits.reset - now(), 0))
             obj.limits.remaining = 5_000
-        else
-            sleep(0.5)
-            println("$vars: graphql")
         end
+        retry_after = (x[2] for x ∈ values(err.response.Info.headers) if x[1] == "Retry-After")
+        isempty(retry_after) || sleep(first(retry_after) + 1)
         try
             obj.client.Query(GITHUB_API_QUERY, operationName = operationName, vars = vars)
         catch err
@@ -442,7 +441,7 @@ function gh_errors(result, pat, operationName, vars)
             return SERVICE_UNAVAILABLE(slug)
         else
             println("$slug: UNKNOWN")
-            UNKNOWN(er, slug, vars)
+            return UNKNOWN(er, slug, vars)
         end
     end
     json
