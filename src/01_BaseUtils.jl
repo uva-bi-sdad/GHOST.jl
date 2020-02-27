@@ -228,7 +228,7 @@ function graphql(
             obj.limits.remaining = 5_000
         end
         retry_after = (x[2] for x ∈ values(err.response.headers) if x[1] == "Retry-After")
-        isempty(retry_after) || sleep(first(retry_after) + 1)
+        isempty(retry_after) || sleep(parse(Int, first(retry_after)) + 1)
         try
             obj.client.Query(GITHUB_API_QUERY, operationName = operationName, vars = vars)
         catch err
