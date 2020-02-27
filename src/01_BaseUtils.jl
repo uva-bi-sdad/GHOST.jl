@@ -227,7 +227,7 @@ function graphql(
             sleep(max(obj.limits.reset - now(), 0))
             obj.limits.remaining = 5_000
         end
-        retry_after = (x[2] for x ∈ values(err.response.Info.headers) if x[1] == "Retry-After")
+        retry_after = (x[2] for x ∈ values(err.response.headers) if x[1] == "Retry-After")
         isempty(retry_after) || sleep(first(retry_after) + 1)
         try
             obj.client.Query(GITHUB_API_QUERY, operationName = operationName, vars = vars)
