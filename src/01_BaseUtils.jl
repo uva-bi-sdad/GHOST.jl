@@ -237,7 +237,7 @@ function graphql(
     end
     obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
     obj.limits.reset = unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"]))
-    sleep(10)
+    sleep(5)
     result
 end
 """
@@ -449,7 +449,7 @@ end
 gh_errors(result::Exception, pat, operationName, vars) = result
 handle_errors(opt::Opt, obj) = false
 function handle_errors(opt::Opt, obj::Exception)
-    println(obj)
+    # println(obj)
     true
 end
 function handle_errors(opt::Opt, obj::GH_ERROR)

@@ -60,7 +60,7 @@ function commits(
     slug::AbstractString,
     since::ZonedDateTime = ZonedDateTime("1970-01-01T00:00:00.000+00:00"),
     until::ZonedDateTime = floor(now(TimeZone("UTC")), Year),
-    bulk_size::Integer = 16,
+    bulk_size::Integer = 32,
 )
     @unpack conn, pat, schema = opt
     # bulk_size = 100
@@ -114,6 +114,7 @@ function commits(
         end
     end
     result = graphql(pat, "Commits", vars)
+    println("$(opt.login): $slug $(now()) $(pat.limits.remaining)")
     json = gh_errors(result, pat, "Commits", vars)
     handle_errors(opt, json) && return
     as_of = ZonedDateTime(
@@ -141,6 +142,7 @@ function commits(
             "first" => bulk_size,
         )
         result = graphql(pat, "CommitsContinue", vars)
+        println("$(opt.login): $slug $(now())")
         json = gh_errors(result, pat, "CommitsContinue", vars)
         handle_errors(opt, json) && return
         if isnothing(json)
