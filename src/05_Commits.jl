@@ -114,7 +114,7 @@ function commits(
         end
     end
     result = graphql(pat, "Commits", vars)
-    println("$(opt.login): $slug $(now()) $(pat.limits.remaining)")
+    println("$(pat.login): $slug $(now()) $(pat.limits.remaining)")
     json = gh_errors(result, pat, "Commits", vars)
     handle_errors(opt, json) && return
     as_of = ZonedDateTime(
@@ -142,7 +142,7 @@ function commits(
             "first" => bulk_size,
         )
         result = graphql(pat, "CommitsContinue", vars)
-        println("$(opt.login): $slug $(now())")
+        println("$(pat.login): $slug $(now())")
         json = gh_errors(result, pat, "CommitsContinue", vars)
         handle_errors(opt, json) && return
         if isnothing(json)
