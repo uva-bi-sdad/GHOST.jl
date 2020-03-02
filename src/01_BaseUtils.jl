@@ -237,7 +237,7 @@ function graphql(
     end
     obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
     obj.limits.reset = unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"]))
-    sleep(2)
+    sleep(0.5)
     result
 end
 """
