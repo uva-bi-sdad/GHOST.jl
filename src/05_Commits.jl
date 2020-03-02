@@ -117,6 +117,18 @@ function commits(
     println("$(pat.login): $slug $(now()) $(pat.limits.remaining)")
     json = gh_errors(result, pat, "Commits", vars)
     handle_errors(opt, json) && return
+    # If repository is empty
+    if isnothing(json.data.repository.defaultBranchRef)
+        execute(
+            conn,
+            """UPDATE $schema.repos
+               SET status = 'Done'
+               WHERE slug = '$slug'
+               ;
+            """,
+        )
+        return
+    end
     as_of = ZonedDateTime(
         first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date"),
         "e, dd u Y HH:MM:SS ZZZ",
