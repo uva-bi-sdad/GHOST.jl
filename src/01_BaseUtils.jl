@@ -218,14 +218,16 @@ function graphql(
     vars::Dict{String},
 )
     if iszero(obj.limits.remaining)
-        sleep(max(obj.limits.reset - now(TimeZone("UTC")), 0))
+        w = obj.limits.reset - now(TimeZone("UTC"))
+        sleep(max(w, zero(w)))
         obj.limits.remaining = 5_000
     end
     result = try
         obj.client.Query(GITHUB_API_QUERY, operationName = operationName, vars = vars)
     catch err
         if isone(obj.limits.remaining)
-            sleep(max(obj.limits.reset - now(TimeZone("UTC")), 0))
+            w = obj.limits.reset - now(TimeZone("UTC"))
+            sleep(max(w, zero(w)))
             obj.limits.remaining = 5_000
         end
         retry_after = (x[2] for x ∈ values(err.response.headers) if x[1] == "Retry-After")
@@ -237,8 +239,11 @@ function graphql(
         end
     end
     obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
-    obj.limits.reset = ZonedDateTime(unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"])), TimeZone("UTC"))
+    obj.limits.reset = ZonedDateTime(unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"])))
     sleep(0.5)
+    if isa(result, Exception)
+        println(result)
+    end
     result
 end
 """
