@@ -239,7 +239,7 @@ function graphql(
         end
     end
     obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
-    obj.limits.reset = ZonedDateTime(unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"])))
+    obj.limits.reset = ZonedDateTime(unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"])), TimeZone("UTC"))
     sleep(0.5)
     if isa(result, Exception)
         println(result)
