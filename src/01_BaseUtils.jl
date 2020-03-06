@@ -5,6 +5,7 @@ Module that provides the base utilities for GHOSS.
 """
 module BaseUtils
 using Dates: DateTime, unix2datetime
+using TimeZones: ZonedDateTime, TimeZone
 using Diana: Client, GraphQLClient
 using JSON3: JSON3
 using HTTP: request
@@ -136,11 +137,11 @@ It includes how many remaining queries are available for the current time period
 
 # Fields
 - `remaining::Int`
-- `reset::DateTime`
+- `reset::ZonedDateTime`
 """
 mutable struct Limits
     remaining::Int
-    reset::DateTime
+    reset::ZonedDateTime
 end
 """
     GitHubPersonalAccessToken(login::AbstractString,
@@ -177,7 +178,7 @@ struct GitHubPersonalAccessToken
             headers = Dict("User-Agent" => login),
         )
         json = JSON3.read(response.body).resources.graphql
-        limits = Limits(json.remaining, unix2datetime(json.reset))
+        limits = Limits(json.remaining, ZonedDateTime(unix2datetime(json.reset), TimeZone("UTC")))
         new(login, token, client, limits)
     end
 end
@@ -201,7 +202,7 @@ function update!(obj::GitHubPersonalAccessToken)
     )
     json = JSON3.read(response.body).resources.graphql
     obj.limits.remaining = json.remaining
-    obj.limits.reset = unix2datetime(json.reset)
+    obj.limits.reset = ZonedDateTime(unix2datetime(json.reset), TimeZone("UTC"))
     obj
 end
 """
@@ -217,14 +218,14 @@ function graphql(
     vars::Dict{String},
 )
     if iszero(obj.limits.remaining)
-        sleep(max(obj.limits.reset - now(), 0))
+        sleep(max(obj.limits.reset - now(TimeZone("UTC")), 0))
         obj.limits.remaining = 5_000
     end
     result = try
         obj.client.Query(GITHUB_API_QUERY, operationName = operationName, vars = vars)
     catch err
         if isone(obj.limits.remaining)
-            sleep(max(obj.limits.reset - now(), 0))
+            sleep(max(obj.limits.reset - now(TimeZone("UTC")), 0))
             obj.limits.remaining = 5_000
         end
         retry_after = (x[2] for x ∈ values(err.response.headers) if x[1] == "Retry-After")
@@ -236,7 +237,7 @@ function graphql(
         end
     end
     obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
-    obj.limits.reset = unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"]))
+    obj.limits.reset = ZonedDateTime(unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"])), TimeZone("UTC"))
     sleep(0.5)
     result
 end
