@@ -215,12 +215,12 @@ function repo_exists(opt::Opt,
                      slug::AbstractString)::Bool
     update!(opt.pat)
     response = try
-        response = HTTP.request("GET",
-                                "$GITHUB_REST_ENDPOINT/repos/$slug",
-                                ["User-Agent" => opt.pat.login,
-                                 "Authorization" => "token $(ENV["GITHUB_TOKEN"])",
-                                 "If-None-Match" => slug,
-                                 "Accept" => "application/vnd.github.v3+json"])
+        response = request("GET",
+                           "$GITHUB_REST_ENDPOINT/repos/$slug",
+                           ["User-Agent" => opt.pat.login,
+                            "Authorization" => "token $(opt.pat.token)",
+                            "If-None-Match" => slug,
+                            "Accept" => "application/vnd.github.v3+json"])
         @assert response.status == 200
         response
     catch err
