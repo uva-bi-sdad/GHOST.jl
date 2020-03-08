@@ -6,7 +6,7 @@ Module for performing the commit data collection.
 module Commits
 using ..BaseUtils: Opt, graphql, gh_errors, handle_errors
 using Dates: now, Year, Second
-using HTTP: request
+using HTTP: request, Messages.Response
 using JSON3: JSON3, Object
 using LibPQ: Connection, Statement, execute, prepare, Intervals.Interval, load!, status
 using LibPQ.TimeZones: ZonedDateTime, TimeZone
@@ -114,7 +114,6 @@ function commits(
         end
     end
     result = graphql(pat, "Commits", vars)
-    println("$(pat.login): $slug $(now()) $(pat.limits.remaining)")
     json = gh_errors(result, pat, "Commits", vars)
     handle_errors(opt, json) && return
     # If repository is empty
@@ -131,7 +130,7 @@ function commits(
     end
     as_of = ZonedDateTime(
         first(x[2] for x ∈ values(result.Info.headers) if x[1] == "Date"),
-        "e, dd u Y HH:MM:SS ZZZ",
+        "e, dd u Y HH:MM:SS Z",
     )
     execute(conn, "BEGIN;")
     load!(
@@ -140,7 +139,7 @@ function commits(
             for node in json.data.repository.defaultBranchRef.target.history.nodes
         ),
         conn,
-        "INSERT INTO $schema.commits VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7) ON CONFLICT DO NOTHING;",
+        "INSERT INTO $schema.commits_ VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7) ON CONFLICT DO NOTHING;",
     )
     execute(conn, "COMMIT;")
     while !isnothing(json.data.repository.defaultBranchRef.target.history.pageInfo.endCursor)
@@ -154,7 +153,6 @@ function commits(
             "first" => bulk_size,
         )
         result = graphql(pat, "CommitsContinue", vars)
-        println("$(pat.login): $slug $(now()) $(pat.limits.remaining)")
         json = gh_errors(result, pat, "CommitsContinue", vars)
         handle_errors(opt, json) && return
         if isnothing(json)
@@ -179,7 +177,7 @@ function commits(
                 for node in json.data.repository.defaultBranchRef.target.history.nodes
             ),
             conn,
-            "INSERT INTO $schema.commits VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7) ON CONFLICT DO NOTHING;",
+            "INSERT INTO $schema.commits_ VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7) ON CONFLICT DO NOTHING;",
         )
         execute(conn, "COMMIT;")
     end
@@ -193,7 +191,7 @@ function commits(
     total = json.data.repository.defaultBranchRef.target.history.totalCount
     collected = getproperty.(execute(
         conn,
-        """SELECT COUNT(*) FROM $schema.commits
+        """SELECT COUNT(*) FROM $schema.commits_
            WHERE slug = '$slug'
            ;
         """,
@@ -206,5 +204,41 @@ function commits(
            ;
         """,
     )
+end
+"""
+    repo_exists(opt::Opt,
+                slug::AbstractString)::Bool
+
+Updates the status of the repo in the database.
+"""
+function repo_exists(opt::Opt,
+                     slug::AbstractString)::Bool
+    update!(opt.pat)
+    response = try
+        response = HTTP.request("GET",
+                                "$GITHUB_REST_ENDPOINT/repos/$slug",
+                                ["User-Agent" => opt.pat.login,
+                                 "Authorization" => "token $(ENV["GITHUB_TOKEN"])",
+                                 "If-None-Match" => slug,
+                                 "Accept" => "application/vnd.github.v3+json"])
+        @assert response.status == 200
+        response
+    catch err
+        err.response.status == 304
+    end
+    update!(opt.pat)
+    found = isa(response, Response)
+    if !found && response
+        execute(conn, "UPDATE $(opt.schema).repos SET status = 'NOT_FOUND' WHERE slug = '$slug';")
+    end
+    found
+end
+"""
+    update_commits()
+"""
+function update_commits(opt::Opt,
+                        slug::AbstractString,
+                        old_table::AbstractString)
+    
 end
 end
