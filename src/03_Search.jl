@@ -6,6 +6,7 @@ Module for performing the repository search.
 module Search
 using ..BaseUtils: Opt, graphql
 using Dates: DateTime, now, Year, Second, CompoundPeriod
+using TimeZones: ZonedDateTime, TimeZone
 using HTTP: request
 using JSON3: JSON3
 using LibPQ: Connection, Statement, execute, prepare
@@ -31,8 +32,8 @@ julia> foreach(row -> search(opt, row...), data)
 function search(
     opt::Opt,
     spdx::AbstractString,
-    since::DateTime = DateTime("2007-10-29T14:37:16"),
-    until::DateTime = floor(now(), Year),
+    since::ZonedDateTime = ZonedDateTime(DateTime("2007-10-29T14:37:16"), TimeZone("UTC")),
+    until::ZonedDateTime = floor(now(TimeZone("UTC")), Year),
     total::Union{Missing,Integer} = missing,
     insert_stmt::Union{Missing,Statement} = missing,
 )

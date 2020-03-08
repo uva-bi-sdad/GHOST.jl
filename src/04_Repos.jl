@@ -21,8 +21,8 @@ Return iterator for insertion into database.
 function parse_repo(
     node::Object,
     spdx::AbstractString,
-    created_query::Interval,
-    as_of::DateTime,
+    created_query::Interval{ZonedDateTime},
+    as_of::ZonedDateTime,
 )
     @unpack nameWithOwner, createdAt = node
     (
@@ -57,7 +57,7 @@ julia> execute(opt.conn,
 true
 ```
 """
-function repos(opt::Opt, spdx::AbstractString, created_query::Interval{DateTime})
+function repos(opt::Opt, spdx::AbstractString, created_query::Interval{ZonedDateTime})
     @unpack conn, pat, schema = opt
     @assert created_query.inclusivity.first && !created_query.inclusivity.last
     result = graphql(

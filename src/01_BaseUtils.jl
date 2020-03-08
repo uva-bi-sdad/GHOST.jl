@@ -4,7 +4,7 @@
 Module that provides the base utilities for GHOSS.
 """
 module BaseUtils
-using Dates: DateTime, unix2datetime
+using Dates: DateTime, unix2datetime, now
 using TimeZones: ZonedDateTime, TimeZone
 using Diana: Client, GraphQLClient
 using JSON3: JSON3
@@ -131,17 +131,34 @@ const GITHUB_API_QUERY = """
 """
     Limits
 
-GitHub API v4 GraphQL limits for a PersonalAccessToken.
+GitHub API limits.
 
 It includes how many remaining queries are available for the current time period and when it resets.
 
 # Fields
+- `limit::Int`
 - `remaining::Int`
 - `reset::ZonedDateTime`
 """
 mutable struct Limits
+    limit::Int
     remaining::Int
     reset::ZonedDateTime
+end
+"""
+    API_Limits
+
+GitHub API limits for a PersonalAccessToken.
+
+# Fields
+- core::Limits
+- search::Limits
+- graphql::Limits
+"""
+mutable struct API_Limits
+    core::Limits
+    search::Limits
+    graphql::Limits
 end
 """
     GitHubPersonalAccessToken(login::AbstractString,
@@ -161,25 +178,20 @@ struct GitHubPersonalAccessToken
     login::String
     token::String
     client::Client
-    limits::Limits
+    limits::API_Limits
     function GitHubPersonalAccessToken(login::AbstractString, token::AbstractString)
-        response = request(
-            "GET",
-            "$GITHUB_REST_ENDPOINT/rate_limit",
-            [
-                "Accept" => "application/vnd.github.v3+json",
-                "User-Agent" => login,
-                "Authorization" => "token $token",
-            ],
-        )
         client = GraphQLClient(
             GITHUB_GRAPHQL_ENDPOINT,
             auth = "bearer $token",
             headers = Dict("User-Agent" => login),
         )
-        json = JSON3.read(response.body).resources.graphql
-        limits = Limits(json.remaining, ZonedDateTime(unix2datetime(json.reset), TimeZone("UTC")))
-        new(login, token, client, limits)
+        # Dummy values
+        limits = API_Limits(Limits(0, 0, now(TimeZone("UTC"))),
+                            Limits(0, 0, now(TimeZone("UTC"))),
+                            Limits(0, 0, now(TimeZone("UTC"))))
+        output = new(login, token, client, limits)
+        # Update dummy values for actual ones
+        update!(output)
     end
 end
 summary(io::IO, obj::GitHubPersonalAccessToken) =
@@ -187,8 +199,10 @@ summary(io::IO, obj::GitHubPersonalAccessToken) =
 function show(io::IO, obj::GitHubPersonalAccessToken)
     print(io, summary(obj))
     println(io, "  login: $(obj.login)")
-    println(io, "  remaining: $(obj.limits.remaining)")
-    println(io, "  reset: $(obj.limits.reset)")
+    println(io, "  core remaining: $(obj.limits.core.remaining)")
+    println(io, "  core reset: $(obj.limits.core.reset)")
+    println(io, "  graphql remaining: $(obj.limits.graphql.remaining)")
+    println(io, "  graphql reset: $(obj.limits.graphql.reset)")
 end
 function update!(obj::GitHubPersonalAccessToken)
     response = request(
@@ -196,13 +210,17 @@ function update!(obj::GitHubPersonalAccessToken)
         "$GITHUB_REST_ENDPOINT/rate_limit",
         [
             "Accept" => "application/vnd.github.v3+json",
-            "User-Agent" => login,
-            "Authorization" => "token $token",
+            "User-Agent" => obj.login,
+            "Authorization" => "token $(obj.token)",
         ],
     )
-    json = JSON3.read(response.body).resources.graphql
-    obj.limits.remaining = json.remaining
-    obj.limits.reset = ZonedDateTime(unix2datetime(json.reset), TimeZone("UTC"))
+    json = JSON3.read(response.body).resources
+    obj.limits.core.remaining = json.core.remaining
+    obj.limits.core.reset = ZonedDateTime(unix2datetime(json.core.reset), TimeZone("UTC"))
+    obj.limits.search.remaining = json.search.remaining
+    obj.limits.search.reset = ZonedDateTime(unix2datetime(json.search.reset), TimeZone("UTC"))
+    obj.limits.graphql.remaining = json.graphql.remaining
+    obj.limits.graphql.reset = ZonedDateTime(unix2datetime(json.graphql.reset), TimeZone("UTC"))
     obj
 end
 """
@@ -217,30 +235,35 @@ function graphql(
     operationName::AbstractString,
     vars::Dict{String},
 )
-    if iszero(obj.limits.remaining)
-        w = obj.limits.reset - now(TimeZone("UTC"))
+    update!(obj)
+    if iszero(obj.limits.graphql.remaining)
+        w = obj.limits.graphql.reset - now(TimeZone("UTC"))
         sleep(max(w, zero(w)))
-        obj.limits.remaining = 5_000
+        obj.limits.remaining = obj.limits.graphql.limit
     end
     result = try
-        obj.client.Query(GITHUB_API_QUERY, operationName = operationName, vars = vars)
-    catch err
-        if isone(obj.limits.remaining)
-            w = obj.limits.reset - now(TimeZone("UTC"))
+        result = obj.client.Query(GITHUB_API_QUERY, operationName = operationName, vars = vars)
+        @assert result.Info.status == 200
+        # If the cost is higher than the current remaining, it will return a 200 with the API rate limit message
+        if result.Data == "{\"errors\":[{\"type\":\"RATE_LIMITED\",\"message\":\"API rate limit exceeded\"}]}"
+            w = obj.limits.graphql.reset - now(TimeZone("UTC"))
             sleep(max(w, zero(w)))
-            obj.limits.remaining = 5_000
+            result = obj.client.Query(GITHUB_API_QUERY, operationName = operationName, vars = vars)
+            @assert result.Info.status == 200
         end
+        result
+    catch err
+        # If the query triggered an abuse behavior it will check for a retry_after
         retry_after = (x[2] for x ∈ values(err.response.headers) if x[1] == "Retry-After")
         isempty(retry_after) || sleep(parse(Int, first(retry_after)) + 1)
+        # The other case is when it timeout. We try once more just in case.
         try
             obj.client.Query(GITHUB_API_QUERY, operationName = operationName, vars = vars)
         catch err
             return err
         end
     end
-    obj.limits.remaining = parse(Int, result.Info["X-RateLimit-Remaining"])
-    obj.limits.reset = ZonedDateTime(unix2datetime(parse(Int, result.Info["X-RateLimit-Reset"])), TimeZone("UTC"))
-    sleep(0.5)
+    update!(obj)
     if isa(result, Exception)
         println(result)
     end
@@ -391,7 +414,7 @@ function setup(opt::Opt)
     )
     execute(
         conn,
-        """CREATE TABLE IF NOT EXISTS $schema.commits (
+        """CREATE TABLE IF NOT EXISTS $schema.commits_ (
              slug text NOT NULL,
              hash text NOT NULL,
              committed_date timestamp with time zone NOT NULL,
@@ -401,8 +424,8 @@ function setup(opt::Opt)
              as_of timestamp with time zone NOT NULL,
              CONSTRAINT commits_pkey PRIMARY KEY (slug, hash)
            );
-           ALTER TABLE $schema.commits OWNER TO $role;
-           CREATE INDEX commits_login ON $schema.commits (login);
+           ALTER TABLE $schema.commits_ OWNER TO $role;
+           CREATE INDEX commits_login ON $schema.commits_ (login);
        """,
     )
     nothing
