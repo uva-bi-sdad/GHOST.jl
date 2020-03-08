@@ -4,7 +4,7 @@
 Module for performing the commit data collection.
 """
 module Commits
-using ..BaseUtils: Opt, graphql, gh_errors, handle_errors
+using ..BaseUtils: Opt, graphql, gh_errors, handle_errors, update!
 using Dates: now, Year, Second
 using HTTP: request, Messages.Response
 using JSON3: JSON3, Object
