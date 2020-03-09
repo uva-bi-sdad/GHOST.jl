@@ -224,7 +224,7 @@ function repo_exists(opt::Opt,
         @assert response.status == 200
         response
     catch err
-        err.response.status == 304
+        err.status == 304
     end
     update!(opt.pat)
     found = isa(response, Response)
