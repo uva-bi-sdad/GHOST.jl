@@ -4,7 +4,8 @@
 Module for performing the commit data collection.
 """
 module Commits
-using ..BaseUtils: Opt, graphql, gh_errors, handle_errors, update!
+using ..BaseUtils: Opt, GITHUB_REST_ENDPOINT, graphql, gh_errors,
+                   handle_errors, update!
 using Dates: now, Year, Second
 using HTTP: request, Messages.Response
 using JSON3: JSON3, Object
@@ -211,16 +212,19 @@ end
 
 Updates the status of the repo in the database.
 """
-function repo_exists(opt::Opt,
-                     slug::AbstractString)::Bool
+function repo_exists(opt::Opt, slug::AbstractString)::Bool
     update!(opt.pat)
     response = try
-        response = request("GET",
-                           "$GITHUB_REST_ENDPOINT/repos/$slug",
-                           ["User-Agent" => opt.pat.login,
-                            "Authorization" => "token $(opt.pat.token)",
-                            "If-None-Match" => slug,
-                            "Accept" => "application/vnd.github.v3+json"])
+        response = request(
+            "GET",
+            "$GITHUB_REST_ENDPOINT/repos/$slug",
+            [
+                "User-Agent" => opt.pat.login,
+                "Authorization" => "token $(opt.pat.token)",
+                "If-None-Match" => slug,
+                "Accept" => "application/vnd.github.v3+json",
+            ],
+        )
         @assert response.status == 200
         response
     catch err
@@ -229,16 +233,17 @@ function repo_exists(opt::Opt,
     update!(opt.pat)
     found = isa(response, Response)
     if !found && response
-        execute(conn, "UPDATE $(opt.schema).repos SET status = 'NOT_FOUND' WHERE slug = '$slug';")
+        execute(
+            conn,
+            "UPDATE $(opt.schema).repos SET status = 'NOT_FOUND' WHERE slug = '$slug';",
+        )
     end
     found
 end
 """
     update_commits()
 """
-function update_commits(opt::Opt,
-                        slug::AbstractString,
-                        old_table::AbstractString)
-    
+function update_commits(opt::Opt, slug::AbstractString, old_table::AbstractString)
+
 end
 end
