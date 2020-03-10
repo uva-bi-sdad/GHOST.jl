@@ -228,13 +228,13 @@ function repo_exists(opt::Opt, slug::AbstractString)::Bool
         @assert response.status == 200
         response
     catch err
-        err.status == 304
+        err.status == 404
     end
     update!(opt.pat)
     found = isa(response, Response)
     if !found && response
         execute(
-            conn,
+            opt.conn,
             "UPDATE $(opt.schema).repos SET status = 'NOT_FOUND' WHERE slug = '$slug';",
         )
     end
