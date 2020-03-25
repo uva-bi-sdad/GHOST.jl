@@ -78,7 +78,7 @@ function commits(
     data =
         execute(
             conn,
-            """SELECT hash, committed_date FROM $(opt.schema).commits
+            """SELECT hash, committed_date FROM $(opt.schema).commits_
                WHERE slug = '$slug'
                ORDER BY committed_date ASC
                LIMIT 1
