@@ -1,132 +1,3 @@
-"""
-    BaseUtils
-
-Module that provides the base utilities for GHOSS.
-"""
-module BaseUtils
-using Dates: DateTime, unix2datetime, now
-using TimeZones: ZonedDateTime, TimeZone
-using Diana: Client, GraphQLClient
-using JSON3: JSON3
-using HTTP: request
-using LibPQ: Connection, execute
-using Parameters: @unpack
-import Base: show, summary
-# Constants
-"""
-    GITHUB_REST_ENDPOINT::String = "https://api.github.com"
-        
-GitHub API v3 RESTful root endpoint.
-"""
-const GITHUB_REST_ENDPOINT = "https://api.github.com"
-"""
-    GITHUB_GRAPHQL_ENDPOINT::String = "https://api.github.com/graphql"
-        
-GitHub API v4 GraphQL API endpoint.
-"""
-const GITHUB_GRAPHQL_ENDPOINT = "https://api.github.com/graphql"
-"""
-    GITHUB_API_QUERY
-
-GitHub GraphQL query.
-"""
-const GITHUB_API_QUERY = """
-                         query Search(\$license_created: String!) {
-                             search(query: \$license_created, type: REPOSITORY) {
-                                 repositoryCount
-                             }
-                         }
-
-                         query Repo(\$license_created: String!) {
-                             search(query: \$license_created, type: REPOSITORY, first: 100) {
-                                 ...SearchLogic
-                             }
-                         }
-
-                         query RepoContinue(\$license_created: String!, \$cursor: String!) {
-                             search(query: \$license_created, type: REPOSITORY, first: 100, after: \$cursor) {
-                                 ...SearchLogic
-                             }
-                         }
-
-                         fragment SearchLogic on SearchResultItemConnection {
-                             pageInfo {
-                                 endCursor
-                             }
-                             nodes {
-                                 ... on Repository {
-                                     nameWithOwner
-                                     createdAt
-                                 }
-                             }
-                         }
-
-                         query RepoVerify(\$license_created: String!) {
-                             search(query: \$license_created, type: REPOSITORY) {
-                                 repositoryCount
-                             }
-                         }
-
-                         query Commits(\$owner: String!, \$name: String!, \$since: GitTimestamp!, \$until: GitTimestamp!, \$first: Int!) {
-                             repository(owner: \$owner, name: \$name) {
-                                 defaultBranchRef {
-                                     target {
-                                         ... on Commit {
-                                             history(since: \$since, until: \$until, first: \$first) {
-                                                 ...CommitData
-                                             }
-                                         }
-                                     }
-                                 }
-                             }
-                         }
-
-                         query CommitsContinue(\$owner: String!, \$name: String!, \$since: GitTimestamp!, \$until: GitTimestamp!, \$cursor: String!, \$first: Int!) {
-                             repository(owner: \$owner, name: \$name) {
-                                 defaultBranchRef {
-                                     target {
-                                         ... on Commit {
-                                             history(since: \$since, until: \$until, after: \$cursor, first: \$first) {
-                                                 ...CommitData
-                                             }
-                                         }
-                                     }
-                                 }
-                             }
-                         }
-
-                         query CommitsVerify(\$owner: String!, \$name: String!, \$since: GitTimestamp!, \$until: GitTimestamp!) {
-                             repository(owner: \$owner, name: \$name) {
-                                 defaultBranchRef {
-                                     target {
-                                         ... on Commit {
-                                             history(since: \$since, until: \$until) {
-                                                 totalCount
-                                             }
-                                         }
-                                     }
-                                 }
-                             }
-                         }
-
-                         fragment CommitData on CommitHistoryConnection {
-                             pageInfo {
-                                 endCursor
-                                 hasNextPage
-                             }
-                             nodes {
-                                 author {
-                                     user {
-                                         login
-                                     }
-                                 }
-                                 oid
-                                 committedDate
-                                 additions
-                                 deletions
-                             }
-                         }
-                         """
 # Structs
 """
     Limits
@@ -223,6 +94,7 @@ function update!(obj::GitHubPersonalAccessToken)
     obj.limits.graphql.reset = ZonedDateTime(unix2datetime(json.graphql.reset), TimeZone("UTC"))
     obj
 end
+
 """
     graphql(obj::GitHubPersonalAccessToken,
             operationName::AbstractString,
@@ -231,24 +103,25 @@ end
 Return JSON of the GraphQL query.
 """
 function graphql(
-    obj::GitHubPersonalAccessToken,
+    obj::GitHubPersonalAccessToken;
+    query::AbstractString,
     operationName::AbstractString,
     vars::Dict{String},
-)
+    )
     update!(obj)
     if iszero(obj.limits.graphql.remaining)
-        w = obj.limits.graphql.reset - now(TimeZone("UTC"))
+        w = obj.limits.graphql.reset - now(utc_tz)
         sleep(max(w, zero(w)))
-        obj.limits.remaining = obj.limits.graphql.limit
+        obj.limits.graphql.remaining = obj.limits.graphql.limit
     end
     result = try
-        result = obj.client.Query(GITHUB_API_QUERY, operationName = operationName, vars = vars)
+        result = obj.client.Query(query, operationName = operationName, vars = vars)
         @assert result.Info.status == 200
         # If the cost is higher than the current remaining, it will return a 200 with the API rate limit message
         if result.Data == "{\"errors\":[{\"type\":\"RATE_LIMITED\",\"message\":\"API rate limit exceeded\"}]}"
-            w = obj.limits.graphql.reset - now(TimeZone("UTC"))
+            w = obj.limits.graphql.reset - now(utc_tz)
             sleep(max(w, zero(w)))
-            result = obj.client.Query(GITHUB_API_QUERY, operationName = operationName, vars = vars)
+            result = obj.client.Query(query, operationName = operationName, vars = vars)
             @assert result.Info.status == 200
         end
         result
@@ -258,7 +131,7 @@ function graphql(
         isempty(retry_after) || sleep(parse(Int, first(retry_after)) + 1)
         # The other case is when it timeout. We try once more just in case.
         try
-            obj.client.Query(GITHUB_API_QUERY, operationName = operationName, vars = vars)
+            obj.client.Query(query, operationName = operationName, vars = vars)
         catch err
             return err
         end
@@ -269,67 +142,53 @@ function graphql(
     end
     result
 end
+# """
+#     Opt(pats::AbstractVector{<:GitHubPersonalAccessToken},
+#         db_usr::AbstractString = "postgres",
+#         db_pwd::AbstractString = "postgres",
+#         host::AbstractString = "postgres",
+#         port::Integer = 5432,
+#         dbname::AbstractString = "postgres",
+#         schema::AbstractString = "github_api_2007_\$(year(floor(now(), Year) - Day(1)))",
+#         role::AbstractString = "postgres"
+#         )::Opt
+
+# Structure for passing arguments to functions.
+
+# # Fields
+# - `conn::Connection`
+# - `schema::String`
+# - `role::String`
+# - `pat::GitHubPersonalAccessToken`
+
+# # Example
+# ```julia-repl
+# julia> opt = Opt("Nosferican",
+#                  ENV["GITHUB_TOKEN"],
+#                  host = ENV["POSTGIS_HOST"],
+#                  port = parse(Int, ENV["POSTGIS_PORT"]));
+
+# ```
+# """
+# struct Opt
+#     conn::Connection
+#     schema::String
+#     pat::GitHubPersonalAccessToken
+#     function Opt(conn::Connection,
+#                  pat::GitHubPersonalAccessToken,
+#                  schema = "gh_2007_$(Dates.year(floor(now(), Year) - Day(1)))")
+#         new(conn, schema, pat)
+#     end
+# end
+# summary(io::IO, obj::Opt) = println(io, "Options for functions")
+# function show(io::IO, obj::Opt)
+#     print(io, summary(obj))
+#     println(io, replace(replace(string(obj.conn), r"^" => "  "), r"\n[^$]" => "\n  "))
+#     println(io, "  Schema: $(obj.schema)")
+#     print(io, replace(replace(string(obj.pat), r"^" => "  "), r"\n[^$]" => "\n  "))
+# end
 """
-    Opt(login::AbstractString,
-        token::AbstractString;
-        db_usr::AbstractString = "postgres",
-        db_pwd::AbstractString = "postgres",
-        host::AbstractString = "postgres",
-        port::Integer = 5432,
-        dbname::AbstractString = "postgres",
-        schema::AbstractString = "github_api_2007_",
-        role::AbstractString = "postgres"
-        )::Opt
-
-Structure for passing arguments to functions.
-
-# Fields
-- `conn::Connection`
-- `schema::String`
-- `role::String`
-- `pat::GitHubPersonalAccessToken`
-
-# Example
-```julia-repl
-julia> opt = Opt("Nosferican",
-                 ENV["GITHUB_TOKEN"],
-                 host = ENV["POSTGIS_HOST"],
-                 port = parse(Int, ENV["POSTGIS_PORT"]));
-
-```
-"""
-struct Opt
-    conn::Connection
-    schema::String
-    role::String
-    pat::GitHubPersonalAccessToken
-    function Opt(
-        login::AbstractString,
-        token::AbstractString;
-        db_usr::AbstractString = "postgres",
-        db_pwd::AbstractString = "postgres",
-        schema::AbstractString = "github_api_2007_",
-        role::AbstractString = "postgres",
-        host::AbstractString = "postgres",
-        port::Integer = 5432,
-        dbname::AbstractString = "postgres",
-    )
-        conn =
-            Connection("host = $host port = $port dbname = $dbname user = $db_usr password = $db_pwd")
-        pat = GitHubPersonalAccessToken(login, token)
-        new(conn, schema, role, pat)
-    end
-end
-summary(io::IO, obj::Opt) = println(io, "Options for functions")
-function show(io::IO, obj::Opt)
-    print(io, summary(obj))
-    println(io, replace(replace(string(obj.conn), r"^" => "  "), r"\n[^$]" => "\n  "))
-    println(io, "  Schema: $(obj.schema)")
-    println(io, "  Role: $(obj.role)")
-    print(io, replace(replace(string(obj.pat), r"^" => "  "), r"\n[^$]" => "\n  "))
-end
-"""
-    setup(opt::Opt)
+    setup(conn::Connection, schema::AbstractString = "gh_2007_$(Dates.year(floor(now(), Year) - Day(1)))")
 
 Sets up your PostgreSQL database for the project based on the options passed through the `Opt`.
 
@@ -340,152 +199,84 @@ julia> setup(opt)
 
 ```
 """
-function setup(opt::Opt)
-    @unpack conn, schema, role = opt
+function setup(conn::Connection, schema::AbstractString = "gh_2007_$(Dates.year(floor(now(), Year) - Day(1)))")
     execute(conn, "CREATE EXTENSION IF NOT EXISTS btree_gist;")
-    getproperty.(
-        execute(
-            conn,
-            "SELECT COUNT(*) = 1 AS check FROM pg_roles WHERE rolname = '$role';",
-        ),
-        :check,
-    )[1] || execute(conn, "CREATE ROLE $role;")
-    execute(conn, "CREATE SCHEMA IF NOT EXISTS $schema AUTHORIZATION $role;")
+    execute(conn, "CREATE SCHEMA IF NOT EXISTS $schema;")
     execute(
         conn,
         """CREATE TABLE IF NOT EXISTS $schema.licenses (
-             name text NOT NULL,
              spdx text NOT NULL,
-             CONSTRAINT licenses_pkey PRIMARY KEY (spdx)
+             name text NOT NULL,
+             CONSTRAINT spdxid UNIQUE (spdx)
            );
-           ALTER TABLE $schema.licenses OWNER TO $role;
+           COMMENT ON TABLE $schema.licenses
+            IS 'OSI-approved machine detectable licenses';
+           COMMENT ON COLUMN $schema.licenses.spdx
+            IS 'SPDX license ID';
+           COMMENT ON COLUMN $schema.licenses.name
+            IS 'Name of the license';
         """,
     )
     execute(
         conn,
-        """CREATE TABLE IF NOT EXISTS $schema.spdx_queries (
+        """CREATE TABLE IF NOT EXISTS $schema.queries (
              spdx text NOT NULL,
-             created_query tsrange NOT NULL,
-             count integer NOT NULL,
-             status text NOT NULL,
-             as_of timestamp with time zone NOT NULL,
-             CONSTRAINT spdx_query UNIQUE (spdx, created_query)
+             created tsrange NOT NULL,
+             count smallint NOT NULL,
+             asof timestamp NOT NULL,
+             done bool NOT NULL,
+             CONSTRAINT query UNIQUE (spdx, created)
            );
-           ALTER TABLE $schema.spdx_queries OWNER TO $role;
-           COMMENT ON TABLE $schema.spdx_queries
+           COMMENT ON TABLE $schema.queries
             IS 'This table is a tracker for queries';
-          COMMENT ON COLUMN $schema.spdx_queries.spdx
+           COMMENT ON COLUMN $schema.queries.spdx
             IS 'The SPDX license ID';
-          COMMENT ON COLUMN $schema.spdx_queries.created_query
+           COMMENT ON COLUMN $schema.queries.created
             IS 'The time interval for the query';
-          COMMENT ON COLUMN $schema.spdx_queries.count
+           COMMENT ON COLUMN $schema.queries.count
             IS 'How many results for the query';
-          COMMENT ON COLUMN $schema.spdx_queries.status
-            IS 'Status of the query';
-          COMMENT ON CONSTRAINT spdx_query ON $schema.spdx_queries
+           COMMENT ON COLUMN $schema.queries.asof
+            IS 'When was GitHub queried about the information.';
+           COMMENT ON COLUMN $schema.queries.done
+            IS 'Has the repositories been collected?';
+           COMMENT ON CONSTRAINT query ON $schema.queries
             IS 'No duplicate for queries';
-          CREATE INDEX spdx_queries_interval ON $schema.spdx_queries USING GIST (created_query);
-          CREATE INDEX spdx_queries_spdx ON $schema.spdx_queries (spdx);
-          CREATE INDEX spdx_queries_spdx_interval ON $schema.spdx_queries USING GIST (spdx, created_query);
-          CREATE INDEX spdx_queries_status ON $schema.spdx_queries (status);
        """,
     )
     execute(
         conn,
         """CREATE TABLE IF NOT EXISTS $schema.repos (
-             slug text NOT NULL,
-             spdx text NOT NULL,
-             created timestamp with time zone NOT NULL,
-             as_of timestamp with time zone NOT NULL,
-             created_query tsrange NOT NULL,
+             repoid text NOT NULL,
+             basebranchid text NOT NULL,
+             asof timestamp NOT NULL,
              status text NOT NULL,
-             CONSTRAINT repos_pkey PRIMARY KEY (slug)
+             CONSTRAINT repoid_idx UNIQUE (repoid)
            );
-           ALTER TABLE $schema.repos OWNER TO $role;
-           COMMENT ON TABLE $schema.repos IS 'Basic information about the repositories';
-           COMMENT ON COLUMN $schema.repos.created
-            IS 'When was the repository created';
-           COMMENT ON COLUMN $schema.repos.created_query
-            IS 'The time interval for the query';
-           CREATE INDEX repos_created ON $schema.repos (created);
-           CREATE INDEX repos_spdx ON $schema.repos (spdx);
-           CREATE INDEX repos_spdx_interval ON $schema.repos USING GIST (spdx, created_query);
+           COMMENT ON TABLE $schema.repos IS 'Repository ID and base branch ID';
+           COMMENT ON COLUMN $schema.repos.repoid
+            IS 'Repository ID';
+           COMMENT ON COLUMN $schema.repos.basebranchid
+            IS 'Base branch ID';
+           COMMENT ON COLUMN $schema.repos.status
+            IS 'Status of collection effort';
+           COMMENT ON COLUMN $schema.repos.asof
+            IS 'When was GitHub queried about the information.';
         """,
     )
     execute(
         conn,
-        """CREATE TABLE IF NOT EXISTS $schema.commits_ (
-             slug text NOT NULL,
-             hash text NOT NULL,
-             committed_date timestamp with time zone NOT NULL,
-             login text,
+        """CREATE TABLE IF NOT EXISTS $schema.commits (
+             basebranchid text NOT NULL,
+             commitid text NOT NULL,
+             committed_date timestamp NOT NULL,
+             authorid text,
+             authoremail text,
              additions integer NOT NULL,
              deletions integer NOT NULL,
-             as_of timestamp with time zone NOT NULL,
-             CONSTRAINT commits_pkey PRIMARY KEY (slug, hash)
+             asof timestamp NOT NULL,
+             CONSTRAINT commits_id UNIQUE (commitid)
            );
-           ALTER TABLE $schema.commits_ OWNER TO $role;
-           CREATE INDEX commits_login ON $schema.commits_ (login);
        """,
     )
     nothing
-end
-abstract type GH_ERROR <: Exception end
-struct NOT_FOUND <: GH_ERROR
-    slug::String
-end
-struct TIMEOUT <: GH_ERROR
-    slug::String
-    vars::Dict{String}
-end
-struct SERVICE_UNAVAILABLE <: GH_ERROR
-    slug::String
-end
-struct UNKNOWN{T} <: GH_ERROR
-    er::T
-    slug::String
-    vars::Dict{String}
-end
-function gh_errors(result, pat, operationName, vars)
-    json = JSON3.read(result.Data)
-    if haskey(json, :errors)
-        er = json.errors[1]
-        slug = "$(vars["owner"])/$(vars["name"])"
-        if startswith(er.message, "Something went wrong while executing your query.")
-            new_bulk_size = vars["first"] ÷ 2
-            while true
-                result =
-                    graphql(pat, operationName, merge(vars, Dict("first" => new_bulk_size)))
-                json = JSON3.read(result.Data)
-                haskey(json, :errors) || break
-                if new_bulk_size == 1
-                    println("$slug: TIMEOUT")
-                    TIMEOUT(slug, vars)
-                end
-                new_bulk_size ÷= 2
-            end
-        elseif er.type == "NOT_FOUND"
-            return NOT_FOUND(slug)
-        elseif er.type == "SERVICE_UNAVAILABLE"
-            return SERVICE_UNAVAILABLE(slug)
-        else
-            println("$slug: UNKNOWN")
-            return UNKNOWN(er, slug, vars)
-        end
-    end
-    json
-end
-gh_errors(result::Exception, pat, operationName, vars) = result
-handle_errors(opt::Opt, obj) = false
-function handle_errors(opt::Opt, obj::Exception)
-    # println(obj)
-    true
-end
-function handle_errors(opt::Opt, obj::GH_ERROR)
-    execute(
-        opt.conn,
-        "UPDATE $(opt.schema).repos SET status = '$(typeof(obj))' WHERE slug = '$(obj.slug)';",
-    )
-    true
-end
 end

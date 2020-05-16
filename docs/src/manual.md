@@ -2,76 +2,55 @@
 
 ## Introduction
 
-This tool can be used for collecting information useful for estimating the scope and impact of open source software.
-
-The following data is collected for the analysis.
-
-- Commit data for repositories
-  - Commit ID (hash)
-  - Timestamp (datetime)
-  - Repository (slug)
-  - Author (login)
-  - Lines added (Integer)
-  - Lines deleted (Integer)
-  - As of (datetime of when information was queried)
-- Repository data
-  - Slug (owner/name)
-  - Creation Date
-  - License (SPDX)
-
-Additional data such as user information can be obtained from the [GHTorrent](http://ghtorrent.org/) project.
+This tool can be used for collecting information useful for measuring the scope and impact of open source software.
 
 ## Licenses
 
-The official list of Open Source Initiative (OSI) approved licenses is hosted at their [website](https://opensource.org/licenses/alphabetical).
+GitHub can recognize certain licenses for repositories per their [documentation](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository). We filter out the machine-detectable licenses that are approved by the Open Source Initiative based on the SPDX Working Group SPDX License [List](https://raw.githubusercontent.com/spdx/license-list-data/master/json/licenses.json) data.
 
-On the OSI licenses database:
+!!! info
 
-- 12 are superseded
-- 5 are retired
-- 78 are active OSI approved
+    SPDX stands for Software Package Data Exchange open standard for communicating software bill of material
+    information (including components, licenses, copyrights, and security references).
 
-GitHub uses the Ruby Gem [Licensee](https://licensee.github.io/licensee/) for systematically detecting the license of repositories (GitHub [documentation](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository#detecting-a-license)). It detects among 38 different [licenses](https://github.com/github/choosealicense.com/tree/gh-pages/_licenses) out of which 29 are OSI-approved licenses (28 active licenses and 1 superseded). These licenses include the most commonly used ones.
+The following licenses are machine-detectable OSI-approved licenses.
 
-The following licenses are both GitHub/Licensee detectable and OSI-approved.
-
-**Name**|**SPDX**
-:-----:|:-----:
-BSD Zero Clause License|0BSD
-Academic Free License v3.0|AFL-3.0
-GNU Affero General Public License v3.0|AGPL-3.0
-Apache License 2.0|Apache-2.0
-Artistic License 2.0|Artistic-2.0
-BSD 2-Clause "Simplified" License|BSD-2-Clause
-BSD 3-Clause "New" or "Revised" License|BSD-3-Clause
-Boost Software License 1.0|BSL-1.0
-CeCILL Free Software License Agreement v2.1|CECILL-2.1
-Educational Community License v2.0|ECL-2.0
-Eclipse Public License 1.0|EPL-1.0
-Eclipse Public License 2.0|EPL-2.0
-European Union Public License 1.2|EUPL-1.2
-GNU General Public License v2.0 only|GPL-2.0
-GNU General Public License v3.0 only|GPL-3.0
-ISC License|ISC
-GNU Lesser General Public License v2.1 only|LGPL-2.1
-GNU Lesser General Public License v3.0 only|LGPL-3.0
-LaTeX Project Public License v1.3c|LPPL-1.3c
-MIT License|MIT
-Mozilla Public License 2.0|MPL-2.0
-Microsoft Public License|MS-PL
-Microsoft Reciprocal License|MS-RL
-University of Illinois/NCSA Open Source License|NCSA
-SIL Open Font License 1.1|OFL-1.1
-Open Software License 3.0|OSL-3.0
-PostgreSQL License|PostgreSQL
-Universal Permissive License v1.0|UPL-1.0
-zlib License|Zlib
-
-The `license` table contains this data.
+|**SPDX**|**Name**|
+|:------:|:------:|
+|0BSD | BSD Zero Clause License|
+|AFL-3.0 | Academic Free License v3.0|
+|AGPL-3.0 | GNU Affero General Public License v3.0|
+|Apache-2.0 | Apache License 2.0|
+|Artistic-2.0 | Artistic License 2.0|
+|BSD-2-Clause | BSD 2-Clause Simplified License|
+|BSD-3-Clause | BSD 3-Clause New or Revised License|
+|BSL-1.0 | Boost Software License 1.0|
+|CECILL-2.1 | CeCILL Free Software License Agreement v2.1|
+|ECL-2.0 | Educational Community License v2.0|
+|EPL-1.0 | Eclipse Public License 1.0|
+|EPL-2.0 | Eclipse Public License 2.0|
+|EUPL-1.1 | European Union Public License 1.1|
+|EUPL-1.2 | European Union Public License 1.2|
+|GPL-2.0 | GNU General Public License v2.0 only|
+|GPL-3.0 | GNU General Public License v3.0 only|
+|ISC | ISC License|
+|LGPL-2.1 | GNU Lesser General Public License v2.1 only|
+|LGPL-3.0 | GNU Lesser General Public License v3.0 only|
+|LPPL-1.3c | LaTeX Project Public License v1.3c|
+|MIT | MIT License|
+|MPL-2.0 | Mozilla Public License 2.0|
+|MS-PL | Microsoft Public License|
+|MS-RL | Microsoft Reciprocal License|
+|NCSA | University of Illinois/NCSA Open Source License|
+|OFL-1.1 | SIL Open Font License 1.1|
+|OSL-3.0 | Open Software License 3.0|
+|PostgreSQL | PostgreSQL License|
+|UPL-1.0 | Universal Permissive License v1.0|
+|Zlib | zlib License|
 
 ## Collection Strategy
 
-### Repositories
+### Universe
 
 We are interested in finding every repository on GitHub that fits the following criteria:
 
@@ -80,17 +59,78 @@ We are interested in finding every repository on GitHub that fits the following 
 - Is not a fork
 - Is not a mirror
 - Is not archived
-- Was created on GitHub during `[1970-01-01, 2020-01-01)`
+- Was created on GitHub during
+```
+[2007-10-29T14:37:16+00, 2020-01-01T00:00:00+00)
+```
 
-In order to perform such a query with the GitHub API we most first identify *search* queries which yield fewer than 1,000 results (the maximum number of results any query will return). The way we achieve the task is through searching for every public, non-fork, non-mirror, non-archived, public repository with `X` license where `X` is a machine-detectable OSI-approved license. In addition, the code will limit results based on when the repository was created (a persistent value) and shorten the interval until fewer than 1,000 results are returned.
+!!! info
 
-We store the query parameters and perform the iterative process for each license of interest.
+    The oldest repository by creation time on GitHub dates back to 2007-10-29T14:37:16+00.
 
-The `queries` table contains is used to store the queries and track their status.
+In the GitHub [search syntax](https://help.github.com/en/github/searching-for-information-on-github/understanding-the-search-syntax) the following criteria is denoted by
 
-For each query, we obtain each of the resulting repositories and their associated data.
+```
+{
+  search(query: "is:public fork:false mirror:false archived:false license:$spdx created:2007-10-29T14:37:16+00..2020-01-01T00:00:00+00", type: REPOSITORY) {
+    repositoryCount
+  }
+}
+```
 
-The `repos` table contains this data and is used to track the status of the commit data for each repository.
+where `$spdx` a license keyword (e.g., `mit`).
+
+!!! Warning
+
+    GitHub only allows to query up to 1,000 results per search connection result.
+    If a query returns over 1,000 results, only the first 1,000 are accessible.
+    In order to be able to collect every repository of interest we query based on:
+        - license (e.g., `spdx:mit`)
+        - when it was created (e.g., `created:2010-01-01T00:00:00+00..2010-02-01T00:00:00+00`)
+    We shrink intervals until the result count is 1,000 or fewer.
+```
+created:2010-01-01T00:00:00+00..2010-01-01T12:00:00+00 1,850
+
+created:2010-01-01T00:00:00+00..2010-01-01T12:00:00+00 998
+created:2010-01-01T12:00:00+00..2010-01-02T00:00:00+00 952
+```
+
+We then prune intervals to obtain the least amount of valid intervals that cover the full time period.
+
+For example,
+
+| spdx |                    created                    | count |         asof        | done  |
+|:----:|:---------------------------------------------:|:-----:|:-------------------:|-------|
+| zlib | ["2007-10-29 00:00:00","2014-09-04 00:00:00") |  999  | 2020-05-14 18:48:03 | FALSE |
+| zlib | ["2014-09-04 00:00:00","2016-12-09 00:00:00") |  998  | 2020-05-14 18:48:03 | FALSE |
+| zlib | ["2016-12-09 00:00:00","2018-12-21 00:00:00") |  998  | 2020-05-14 18:48:03 | FALSE |
+| zlib | ["2018-12-21 00:00:00","2020-01-01 00:00:00") |  562  | 2020-05-14 18:48:03 | FALSE |
+
+!!! info
+
+    This is table `gh_2007_2019.queries`.
+
+The `queries` table is used to store the queries and track their status. Once all the records have been obtained for the `repos` table their `done` status becomes `TRUE`.
+
+### Repository base branch
+
+The commit data for a Git repository is dependent on the base branch.
+
+The `repos` table contains the GitHub repository global node ID and the global node ID for the base branch of the repository.
+
+| repoid                           | basebranchid                     | asof                   | status |
+|----------------------------------|----------------------------------|------------------------|--------|
+| MDEwOlJlcG9zaXRvcnkyMzgzNTcxMTI= | MDM6UmVmMjM4MzU3MTEyOm1hc3Rlcg== | 2020-05-14 19:49:10+00 | Ready  |
+
+!!! info
+
+    This is table `gh_2007_2019.repos`.
+
+The various `status` values include:
+
+- `Ready`: We will commence collecting commit data from it.
+- `Unavailable`: Repository is not accessible (e.g., deleted of made private `NOT_FOUND`, DMCA takedown)
+- `Error`: Something weird happened such as someone Git force pushing and changing the history during scrape.
 
 ### Commits
 
@@ -112,6 +152,6 @@ In order to use this package, refer to the example in the [test suite](https://g
 
 ### Components
 
-- Internet Access
-- Julia v1 (current release v1.3.1)
+- GitHub Personal Access Tokens with `read_org` access
+- Julia v1 (current release v1.4.0)
 - A PostgreSQL database connection (tested with v11 and v12)

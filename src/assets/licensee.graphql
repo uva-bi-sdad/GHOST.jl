@@ -1,0 +1,14 @@
+query licensee($id: ID!, $expression: String!) {
+  node(id: $id) {
+    ... on Repository {
+      object(expression: $expression) {
+        ... on Tree {
+          oid
+          entries {
+            name
+          }
+        }
+      }
+    }
+  }
+}
