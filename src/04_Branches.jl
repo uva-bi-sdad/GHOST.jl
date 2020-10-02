@@ -28,7 +28,7 @@ function find_repos(batch::AbstractDataFrame)
                      "..",
                      format(batch.created[idx].last, "yyyy-mm-ddTHH:MM:SS\\Z"),
                      "\",type:REPOSITORY, first:10, after:\$cursor_$idx){...A}") for idx in 1:size(batch, 1)]);
-    query = string(String(read(joinpath("src", "assets", "graphql", "branches.graphql"))),
+    query = string(String(read(joinpath(@__DIR__, "src", "assets", "graphql", "branches.graphql"))),
                           "query Search(\$until:String!,",
                           join((("\$cursor_$idx:String") for idx in 1:size(batch, 1)), ','),
                           "){$subsquery}") |>
