@@ -155,10 +155,10 @@ function setup(dbname::AbstractString = "sdad", schema::AbstractString = "gh_200
     GHOSS.PARALLELENABLER.pat = pat
     execute(conn,
             replace(join(["CREATE EXTENSION IF NOT EXISTS btree_gist; CREATE SCHEMA IF NOT EXISTS schema;",
-                          String(read(joinpath(@__DIR__, "src", "assets", "sql", "licenses.sql"))),
-                          String(read(joinpath(@__DIR__, "src", "assets", "sql", "queries.sql"))),
-                          String(read(joinpath(@__DIR__, "src", "assets", "sql", "repos.sql"))),
-                          String(read(joinpath(@__DIR__, "src", "assets", "sql", "commits.sql"))),
+                          String(read(joinpath(@__DIR__, "assets", "sql", "licenses.sql"))),
+                          String(read(joinpath(@__DIR__, "assets", "sql", "queries.sql"))),
+                          String(read(joinpath(@__DIR__, "assets", "sql", "repos.sql"))),
+                          String(read(joinpath(@__DIR__, "assets", "sql", "commits.sql"))),
                          ],
                         ' '),
                     "schema" => schema))
