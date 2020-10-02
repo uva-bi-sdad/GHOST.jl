@@ -5,20 +5,20 @@ This is a module for collecting GitHub data about open source repositories and c
 """
 module GHOSS
 
-using Base.Iterators: flatten
-using DataFrames: DataFrames, AbstractDataFrame, DataFrame, order
+# using Base.Iterators: flatten
+using DataFrames: DataFrames, AbstractDataFrame, DataFrame, order, groupby
 using Diana: Diana, HTTP, Client, GraphQLClient,
              # HTTP
-             HTTP.request
+             HTTP.request, HTTP.ExceptionRequest.StatusError
 using Distributed: addprocs, @everywhere, fetch, @spawnat, workers, remotecall, remotecall_eval, Future, @sync, @distributed
 using JSON3: JSON3
 using LibPQ: LibPQ, Connection, execute, load!,
              # Intervals
-             Intervals, Interval, superset,
+             Intervals, Interval, superset, Closed, Open,
              # TimeZones
-             TimeZones, TimeZone, ZonedDateTime, TimeZones.utc_tz,
+             TimeZones, TimeZone, ZonedDateTime, UTC, TimeZones.utc_tz,
              # Dates
-             Dates, DateTime, Second, Year, Dates.format, now, unix2datetime, Day, Date, Hour, year, Minute,
+             Dates, DateTime, Dates.CompoundPeriod, Dates.canonicalize, Second, Year, Month, Week, Dates.format, now, unix2datetime, Day, Date, Hour, year, Minute,
              # Tables
              Tables, rowtable
 using Parameters: Parameters, @unpack
@@ -37,11 +37,11 @@ GitHub API v4 GraphQL API endpoint.
 """
 const GITHUB_GRAPHQL_ENDPOINT = "https://api.github.com/graphql"
 """
-    GH_FIRST_REPO_TS::ZonedDateTime = 2007-10-29T14:37:16+00:00
+    GH_FIRST_REPO_TS::DateTime = 2007-10-29T14:37:16
         
 Timestamp when the earliest public GitHub repository was created (id: "MDEwOlJlcG9zaXRvcnkx", nameWithOwner: "mojombo/grit")
 """
-const GH_FIRST_REPO_TS = ZonedDateTime("2007-10-29T14:37:16+00", "yyyy-mm-ddTHH:MM:SSz")
+const GH_FIRST_REPO_TS = DateTime("2007-10-29T14:37:16")
 
 # for (root, dirs, files) in walkdir(joinpath(@__DIR__, "src"))
 for (root, dirs, files) in walkdir(joinpath(@__DIR__))
@@ -55,30 +55,18 @@ end
 
 mutable struct ParallelEnabler
     pat::GitHubPersonalAccessToken
+    conn::Connection
+    schema::String
     spdx::String
     ParallelEnabler() = new()
-    function ParallelEnabler(pat::GitHubPersonalAccessToken)
-        output = new()
-        output.pat = pat
-        output
-    end
 end
 
 const READY = Ref(Future[])
-const PARALLELENABLER = Ref(ParallelEnabler())
+const PARALLELENABLER = ParallelEnabler()
 
-function setup_parallel(pats::AbstractVector{GitHubPersonalAccessToken})
-    npats = length(pats)
-    addprocs(npats, exeflags = `--proj`)
-    remotecall_eval(Main, workers(), :(using GHOSS))
-    GHOSS.READY.x = Vector{Future}(undef, npats)
-    for proc ∈ workers()
-        GHOSS.READY.x[proc - 1] = GHOSS.@spawnat proc nothing
-        pat = pats[proc - 1]
-        expr = :(GHOSS.PARALLELENABLER.x.pat = $pat;)
-        remotecall_eval(Main, proc, expr)
-    end
-end
-
-export GitHubPersonalAccessToken, queries, setup_parallel
+export GitHubPersonalAccessToken, queries, setup, setup_parallel,
+       Connection, execute, DataFrame, Interval, ZonedDateTime, utc_tz,
+       generate_search_query, graphql, JSON3, @sync, @distributed,
+       licenses, find_queries, find_repos, 
+       now, CompoundPeriod, canonicalize
 end
