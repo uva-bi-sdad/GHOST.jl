@@ -1,19 +1,15 @@
 """
     licenses(conn::Connection,
              pat::GitHubPersonalAccessToken,
-             schema::AbstractString = "gh_2007_$(Dates.year(floor(now(), Year) - Day(1)))",
+             schema::AbstractString = "gh_2007_\$(Dates.year(floor(now(), Year) - Day(1)))",
              )::Nothing
 
 Uploads the licenses table to the database.
 It includes every OSI-approved license that is machine readable with Licensee.
 """
-function licenses(conn::Connection,
-                  pat::GitHubPersonalAccessToken,
-                  schema::AbstractString = "gh_2007_$(Dates.year(floor(now(), Year) - Day(1)))")
+function licenses()
     # Obtain all licences used by the Ruby gem: `licensee`.
-    licensee = graphql(pat,
-                       query = string(strip(replace(String(read(joinpath(@__DIR__, "assets", "licensee.graphql"))), r"[\n\s]+" => " "))),
-                       operationName = "licensee",
+    licensee = graphql(string(strip(replace(String(read(joinpath(@__DIR__, "assets", "graphql", "licensee.graphql"))), r"[\n\s]+" => " "))),
                        # The repository is https://github.com/licensee/licensee
                        vars = Dict("id" => "MDEwOlJlcG9zaXRvcnkyMzAyMjM3Nw==",
                                    # Path is https://github.com/licensee/licensee/tree/master/vendor/choosealicense.com/_licenses
@@ -32,11 +28,14 @@ function licenses(conn::Connection,
                            for license in obj.licenses if license.isOsiApproved ]))
     # Keep only licenses that are machine detectable with Licensee
     filter!(license -> uppercase(license.spdx) ∈ licensee.spdx, spdx.spdx)
+    @unpack conn, schema = PARALLELENABLER
+    execute(conn, "TRUNCATE TABLE $schema.licenses CASCADE;")
     execute(conn, "BEGIN;")
-    load!(spdx.spdx, conn, "INSERT INTO $schema).licenses VALUES ($(join(("\$$i" for i in 1:2), ',')));")
+    load!(spdx.spdx, conn, "INSERT INTO $schema.licenses VALUES ($(join(("\$$i" for i in 1:2), ','))) ON CONFLICT DO NOTHING;")
     execute(conn, "COMMIT;")
     # Add the source data metadata
-    execute(conn,
+    execute(
+        conn,
         """
         COMMENT ON TABLE $schema.licenses IS
         'OSI-approved machine detectable licenses (i.e., Licensee).

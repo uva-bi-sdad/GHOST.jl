@@ -1,0 +1,29 @@
+fragment A on SearchResultItemConnection {
+  pageInfo {
+    endCursor
+    hasNextPage
+  }
+  edges {
+    node {
+      ... on Repository {
+        id
+        createdAt
+        nameWithOwner
+        description        
+        primaryLanguage {
+          name
+        }
+        defaultBranchRef {
+          id
+          target {
+            ... on Commit {
+              history(until: $until) {
+                totalCount
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
