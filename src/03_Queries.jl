@@ -45,7 +45,6 @@ function query_intervals(created::Vector{Vector{Interval{DateTime,Closed,Open}}}
         if isnothing(w)
             sleep(3)
         else
-            println(w)
             append!(output, fetch(READY.x[maptovalidprocs][w]))
             READY.x[maptovalidprocs[w]] = remotecall(GHOSS.query_intervals, maptovalidprocs[w] + 1, popfirst!(created))
         end

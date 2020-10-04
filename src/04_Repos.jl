@@ -1,9 +1,9 @@
 """
-    parse_branch_node(node, spdx::AbstractString)::NamedTuple
+    parse_repo(node, spdx::AbstractString)::NamedTuple
 
 Parses a node and returns a suitable `NamedTuple` for the table.
 """
-function parse_branch_node(node, spdx::AbstractString)
+function parse_repo(node, spdx::AbstractString)
     @unpack id, createdAt, nameWithOwner, description, primaryLanguage, defaultBranchRef = node
     (id = id,
      spdx = spdx,
@@ -11,7 +11,9 @@ function parse_branch_node(node, spdx::AbstractString)
      createdat = DateTime(replace(createdAt, "Z" => "")),
      description = something(description, missing),
      primarylanguage = isnothing(primaryLanguage) ? missing : primaryLanguage.name,
-     branch = isnothing(primaryLanguage) ? missing : defaultBranchRef.id)
+     branch = isnothing(defaultBranchRef) ? missing : defaultBranchRef.id,
+     commits = isnothing(defaultBranchRef) ? 0 : defaultBranchRef.target.history.totalCount,
+    )
 end
 """
     find_repos(batch::AbstractDataFrame)::Nothing
@@ -20,15 +22,15 @@ Takes a batch of 10 spdx/createdat and puts the data in the database.
 """
 function find_repos(batch::AbstractDataFrame)
     @unpack conn, schema = GHOSS.PARALLELENABLER
-    output = DataFrame(vcat(fill(String, 3), DateTime, fill(Union{Missing, String}, 3)),
-                       [:id, :spdx, :slug, :createdat, :description, :primarylanguage, :branch],
+    output = DataFrame(vcat(fill(String, 3), DateTime, fill(Union{Missing, String}, 3), Int),
+                       [:id, :spdx, :slug, :createdat, :description, :primarylanguage, :branch, :commits],
                        0)
     subsquery = join([ string("_$idx:search(query:\"is:public fork:false mirror:false archived:false license:$(batch.spdx[idx]) created:",
                      format(batch.created[idx].first, "yyyy-mm-ddTHH:MM:SS\\Z"),
                      "..",
                      format(batch.created[idx].last, "yyyy-mm-ddTHH:MM:SS\\Z"),
                      "\",type:REPOSITORY, first:10, after:\$cursor_$idx){...A}") for idx in 1:size(batch, 1)]);
-    query = string(String(read(joinpath(@__DIR__, "assets", "graphql", "branches.graphql"))),
+    query = string(String(read(joinpath(@__DIR__, "assets", "graphql", "02_repos.graphql"))),
                           "query Search(\$until:String!,",
                           join((("\$cursor_$idx:String") for idx in 1:size(batch, 1)), ','),
                           "){$subsquery}") |>
@@ -43,7 +45,7 @@ function find_repos(batch::AbstractDataFrame)
         json = JSON3.read(result.Data)
         append!(output,
                 reduce(vcat,
-                       DataFrame(parse_branch_node(node.node, spdx) for node in elem.edges)
+                       DataFrame(parse_repo(node.node, spdx) for node in elem.edges)
                        for (elem, spdx) in zip(values(json.data), batch[:spdx])))
         json.data[:_1].pageInfo.hasNextPage || break
         all(elem -> !elem.pageInfo.hasNextPage, values(json.data)) || break

@@ -9,7 +9,7 @@ fragment A on SearchResultItemConnection {
         id
         createdAt
         nameWithOwner
-        description        
+        description
         primaryLanguage {
           name
         }

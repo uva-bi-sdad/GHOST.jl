@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS schema.repos (
     description text,
     primarylanguage text,
     branch text,
+    commits bigint NOT NULL,
     asof timestamp NOT NULL DEFAULT date_trunc('second', current_timestamp AT TIME ZONE 'UTC')::timestamp,
     status text NOT NULL DEFAULT 'Init'
 );
@@ -17,5 +18,6 @@ COMMENT ON COLUMN schema.repos.createdat IS 'When was the repository created on 
 COMMENT ON COLUMN schema.repos.description IS 'Description of the respository';
 COMMENT ON COLUMN schema.repos.primarylanguage IS 'Primary language of the respository';
 COMMENT ON COLUMN schema.repos.branch IS 'Base branch ID';
+COMMENT ON COLUMN schema.repos.commits IS 'Number of commits in the branch until the end of the observation period';
 COMMENT ON COLUMN schema.repos.asof IS 'When was GitHub queried?';
 COMMENT ON COLUMN schema.repos.status IS 'Status of collection effort';

@@ -1,5 +1,5 @@
 using GHOSS
-time_start = GHOSS.now()
+time_start = now()
 setup()
 setup_parallel(5)
 spdxs = execute(GHOSS.PARALLELENABLER.conn,
@@ -9,5 +9,5 @@ spdxs = execute(GHOSS.PARALLELENABLER.conn,
 for spdx in spdxs
     queries(spdx)
 end
-time_end = GHOSS.now()
-GHOSS.Dates.canonicalize(GHOSS.Dates.CompoundPeriod(time_end - time_start))
+time_end = now()
+canonicalize(CompoundPeriod(time_end - time_start))
