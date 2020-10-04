@@ -11,7 +11,7 @@ function parse_branch_node(node, spdx::AbstractString)
      createdat = DateTime(replace(createdAt, "Z" => "")),
      description = something(description, missing),
      primarylanguage = isnothing(primaryLanguage) ? missing : primaryLanguage.name,
-     branch = something(defaultBranchRef.id, missing))
+     branch = isnothing(primaryLanguage) ? missing : defaultBranchRef.id)
 end
 """
     find_repos(batch::AbstractDataFrame)::Nothing
@@ -46,8 +46,11 @@ function find_repos(batch::AbstractDataFrame)
                        DataFrame(parse_branch_node(node.node, spdx) for node in elem.edges)
                        for (elem, spdx) in zip(values(json.data), batch[:spdx])))
         json.data[:_1].pageInfo.hasNextPage || break
+        all(elem -> !elem.pageInfo.hasNextPage, values(json.data)) || break
         for idx in eachindex(json.data)
-            push!(vars, "cursor$idx" => json.data[idx].pageInfo.endCursor) 
+            if !isnothing(json.data[idx].pageInfo.endCursor)
+                push!(vars, "cursor$idx" => json.data[idx].pageInfo.endCursor)
+            end
         end
     end
     execute(conn, "BEGIN;")

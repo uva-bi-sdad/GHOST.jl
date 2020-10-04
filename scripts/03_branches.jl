@@ -9,8 +9,9 @@ data = execute(conn, String(read(joinpath("src", "assets", "sql", "queries_batch
     DataFrame |>
     (df -> groupby(df, [:queries, :query_group]));
 data = [ data[k] for k in keys(data) ];
-
 time_start = now()
-find_repos(data[begin])
-time_end = now()
+@sync @distributed for batch in data
+    find_repos(batch)    
+end
+time_start = now()
 canonicalize(CompoundPeriod(time_end - time_start))
