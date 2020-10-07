@@ -21,7 +21,7 @@ end
 Takes a batch of 10 spdx/createdat and puts the data in the database.
 """
 function find_repos(batch::AbstractDataFrame)
-    @unpack conn, schema = GHOSS.PARALLELENABLER
+    @unpack conn, schema = PARALLELENABLER
     output = DataFrame(vcat(fill(String, 3), DateTime, fill(Union{Missing, String}, 3), Int),
                        [:id, :spdx, :slug, :createdat, :description, :primarylanguage, :branch, :commits],
                        0)
