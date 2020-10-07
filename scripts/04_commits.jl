@@ -1,6 +1,6 @@
 using GHOSS
 setup()
-using GHOSS: @unpack
+using GHOSS: @unpack, load!
 @unpack conn, schema, pat = GHOSS.PARALLELENABLER
 
 data = execute(conn,
@@ -10,4 +10,5 @@ data = execute(conn,
                    (obj -> replace(obj, "max_lim" => 10)),
                not_null = true) |>
     (obj -> getproperty.(obj, :branch))
-query_commits_repos_1_10(view(data, 101:200))
+
+query_commits_repos_1_10(view(data, 1:100))

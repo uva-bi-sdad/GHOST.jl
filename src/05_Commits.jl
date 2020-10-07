@@ -15,9 +15,9 @@ function parse_commit(branch, node)
      id = node.id,
      sha1 = node.oid,
      committed_ts = replace(node.committedDate, "Z" => ""),
-     emails = """{$(join(("$(elem.email)" for elem in authors), ','))}""",
-     names = """{$(join(("$(elem.name)" for elem in authors), ','))}""",
-     users = string("{", join((ismissing(elem.id) ? "null" : "$(elem.id)" for elem in authors), ','), "}"),
+     emails = escape_string(string("{", join((elem.email for elem in authors), ','), "}")),
+     names = escape_string(string("{", join((elem.name for elem in authors), ','), "}")),
+     users = escape_string(string("{", join((ismissing(elem.id) ? "null" : elem.id for elem in authors), ','), "}")),
      additions = node.additions,
      deletions = node.deletions)
 end
@@ -41,9 +41,14 @@ function query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::N
     result = graphql(query, vars = vars)
     json = JSON3.read(result.Data)
     for (branch, nodes) in zip(branches, values(json.data.nodes))
-        for edge in nodes.target.history.edges
-            for node in values(edge)
-                push!(output, parse_commit(branch, node))
+        if isnothing(nodes)
+            println(branch)
+            execute(conn, "UPDATE $schema.repos SET status = 'NOT_FOUND' WHERE branch = '$branch';")
+        else
+            for edge in nodes.target.history.edges
+                for node in values(edge)
+                    push!(output, parse_commit(branch, node))
+                end
             end
         end
     end
