@@ -15,8 +15,8 @@ function parse_commit(branch, node)
      id = node.id,
      sha1 = node.oid,
      committed_ts = replace(node.committedDate, "Z" => ""),
-     emails = escape_string(string("{", join((elem.email for elem in authors), ','), "}")),
-     names = escape_string(string("{", join((elem.name for elem in authors), ','), "}")),
+     emails = escape_string(string("{", join((replace(elem.email, r"(\{|\})" => s"\\\1}") for elem in authors), ','), "}")),
+     names = escape_string(string("{", join((replace(elem.name, r"(\{|\})" => s"\\\1}") for elem in authors), ','), "}")),
      users = escape_string(string("{", join((ismissing(elem.id) ? "null" : elem.id for elem in authors), ','), "}")),
      additions = node.additions,
      deletions = node.deletions)
