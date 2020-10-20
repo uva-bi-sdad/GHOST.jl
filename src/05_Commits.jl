@@ -15,9 +15,9 @@ function parse_commit(branch, node)
      id = node.id,
      sha1 = node.oid,
      committed_ts = replace(node.committedDate, "Z" => ""),
-     emails = getproperty.(authors, :email),
-     names = getproperty.(authors, :name),
-     users = getproperty.(authors, :id),
+     emails = replace.(getproperty.(authors, :email), r"(\{|\}|\")" => s"\\\1}"),
+     names = replace.(getproperty.(authors, :name), r"(\{|\}|\")" => s"\\\1}"),
+     users = replace.(getproperty.(authors, :id), r"(\{|\}|\")" => s"\\\1}"),
      additions = node.additions,
      deletions = node.deletions)
 end
