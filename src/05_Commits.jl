@@ -26,8 +26,8 @@ end
 """
 function query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::Nothing
     @unpack conn, schema = PARALLELENABLER
-    output = DataFrame(vcat(fill(String, 7), fill(Int, 2)),
-                       [:branch, :id, :sha1, :committed_ts, :emails, :names, :users,:additions, :deletions],
+    output = DataFrame(vcat(fill(String, 4), fill(Vector{Union{Missing,String}}, 3), fill(Int, 2)),
+                       [:branch, :id, :sha1, :committed_ts, :emails, :names, :users, :additions, :deletions],
                        0)
     query = String(read(joinpath(dirname(pathof(GHOSS)), "assets", "graphql", "03_commits.graphql"))) |>
         (obj -> replace(obj, r"\s+" => " ")) |>
