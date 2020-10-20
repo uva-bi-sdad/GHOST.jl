@@ -123,7 +123,10 @@ function graphql(
             obj.client.Query(query, operationName = operationName, vars = vars)
         catch err
             println("This shouldn't happen with abuse")
-            return err
+            result = obj.client.Query(query, operationName = operationName, vars = vars)
+            @assert result.Info.status == 200
+            result
+            # return err
         end
     end
     update!(obj)
