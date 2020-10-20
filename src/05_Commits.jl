@@ -13,7 +13,7 @@ function parse_commit(branch, node)
     authors = parse_author.(getproperty.(node.authors.edges, :node))
     emails = [ isa(elem, AbstractString) ? replace(elem, r"(\{|\}|\")" => s"\\\1}") : missing for elem in getproperty.(authors, :email) ]
     names = [ isa(elem, AbstractString) ? replace(elem, r"(\{|\}|\")" => s"\\\1}") : missing for elem in getproperty.(authors, :name) ]
-    users = [ isa(elem, AbstractString) ? replace(elem, r"(\{|\}|\")" => s"\\\1}") : missing for elem in getproperty.(authors, :authors) ]
+    users = [ isa(elem, AbstractString) ? replace(elem, r"(\{|\}|\")" => s"\\\1}") : missing for elem in getproperty.(authors, :id) ]
     (branch = branch,
      id = node.id,
      sha1 = node.oid,
