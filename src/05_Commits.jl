@@ -11,13 +11,16 @@ This parses a commit node and adds the branch it queried.
 """
 function parse_commit(branch, node)
     authors = parse_author.(getproperty.(node.authors.edges, :node))
+    emails = [ isa(elem, AbstractString) ? replace(elem, r"(\{|\}|\")" => s"\\\1}") : missing for elem in getproperty.(authors, :email) ]
+    names = [ isa(elem, AbstractString) ? replace(elem, r"(\{|\}|\")" => s"\\\1}") : missing for elem in getproperty.(authors, :name) ]
+    users = [ isa(elem, AbstractString) ? replace(elem, r"(\{|\}|\")" => s"\\\1}") : missing for elem in getproperty.(authors, :authors) ]
     (branch = branch,
      id = node.id,
      sha1 = node.oid,
      committed_ts = replace(node.committedDate, "Z" => ""),
-     emails = replace.(getproperty.(authors, :email), r"(\{|\}|\")" => s"\\\1}"),
-     names = replace.(getproperty.(authors, :name), r"(\{|\}|\")" => s"\\\1}"),
-     users = replace.(getproperty.(authors, :id), r"(\{|\}|\")" => s"\\\1}"),
+     emails = emails,
+     names = names,
+     users = users,
      additions = node.additions,
      deletions = node.deletions)
 end
