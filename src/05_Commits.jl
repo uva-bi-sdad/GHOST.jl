@@ -10,6 +10,10 @@ parse_author(node) = (email = node.email, name = node.name, id = isnothing(node.
 This parses a commit node and adds the branch it queried.
 """
 function parse_commit(branch, node)
+    if isnothing(node)
+        println(branch)
+        throw(ErrorException("Weird thing going on"))
+    end
     authors = parse_author.(getproperty.(node.authors.edges, :node))
     emails = [ isa(elem, AbstractString) ? replace(elem, r"(\{|\}|\")" => s"\\\1}") : missing for elem in getproperty.(authors, :email) ]
     names = [ isa(elem, AbstractString) ? replace(elem, r"(\{|\}|\")" => s"\\\1}") : missing for elem in getproperty.(authors, :name) ]
