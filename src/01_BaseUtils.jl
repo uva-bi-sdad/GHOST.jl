@@ -112,15 +112,19 @@ function graphql(
     catch err
         try
             if err.status == 403
+                # 403 Forbidden
                 println("Will now sleep")
                 # If the query triggered an abuse behavior it will check for a retry_after
                 retry_after = (x[2] for x ∈ values(err.response.headers) if x[1] == "Retry-After")
                 isempty(retry_after) || sleep(parse(Int, only(retry_after)) + 1)
+            elseif err.status == 502
+                # 502 Bad Gateway
+                sleep(60)
             end
             # The other case is when it timeout. We try once more just in case.
             obj.client.Query(query, operationName = operationName, vars = vars)
         catch err
-            println("This shouldn't happen with abuse")
+            println("Not great")
             throw(err)
         end
     end
