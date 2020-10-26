@@ -110,8 +110,6 @@ function graphql(
         end
         result
     catch err
-        println(err)
-        println(propertynames(err))
         try
             if err.status == 403
                 println("Will now sleep")
@@ -123,10 +121,7 @@ function graphql(
             obj.client.Query(query, operationName = operationName, vars = vars)
         catch err
             println("This shouldn't happen with abuse")
-            result = obj.client.Query(query, operationName = operationName, vars = vars)
-            @assert result.Info.status == 200
-            result
-            # return err
+            throw(err)
         end
     end
     update!(obj)
