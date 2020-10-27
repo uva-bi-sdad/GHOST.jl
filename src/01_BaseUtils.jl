@@ -99,39 +99,29 @@ function graphql(
         obj.limits.graphql.remaining = obj.limits.graphql.limit
     end
     result = try
-        result = obj.client.Query(query, operationName = operationName, vars = vars)
-        @assert result.Info.status == 200
-        # If the cost is higher than the current remaining, it will return a 200 with the API rate limit message
-        if result.Data == "{\"errors\":[{\"type\":\"RATE_LIMITED\",\"message\":\"API rate limit exceeded\"}]}"
-            w = obj.limits.graphql.reset - now(utc_tz)
-            sleep(max(w, zero(w)))
-            result = obj.client.Query(query, operationName = operationName, vars = vars)
-            @assert result.Info.status == 200
-        end
-        result
+        obj.client.Query(query, operationName = operationName, vars = vars)
     catch err
-        try
-            if err.status == 403
-                # 403 Forbidden
-                println("Will now sleep")
-                # If the query triggered an abuse behavior it will check for a retry_after
-                retry_after = (x[2] for x ∈ values(err.response.headers) if x[1] == "Retry-After")
-                isempty(retry_after) || sleep(parse(Int, only(retry_after)) + 1)
-            elseif err.status == 502
-                # 502 Bad Gateway
-                sleep(60)
-            end
-            # The other case is when it timeout. We try once more just in case.
+        err
+    end
+    retries = 0
+    # Either it exceeded the rate limit or it timeout (for those we retry threee times)
+    isok = isa(result, Result) &&
+        result.Info.status == 200 &&
+        result.Data ≠ """{"errors":[{"type":"RATE_LIMITED","message":"API rate limit exceeded"}]}"""
+    while !isok && retries < 3
+        sleep(61)
+        result = try
             obj.client.Query(query, operationName = operationName, vars = vars)
         catch err
-            println("Not great")
-            throw(err)
+            err
         end
+        isok = isa(result, Result) &&
+            result.Info.status == 200 &&
+            result.Data ≠ """{"errors":[{"type":"RATE_LIMITED","message":"API rate limit exceeded"}]}"""
+        retries += 1
     end
+    @assert isok (branches = branches, result = result)
     update!(obj)
-    if isa(result, Exception)
-        println(result)
-    end
     result
 end
 """

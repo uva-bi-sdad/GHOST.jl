@@ -46,15 +46,7 @@ function query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::N
                 "nodes" => branches,
                 "first" => 10)
     result = graphql(query, vars = vars)
-    json = try
-        JSON3.read(result.Data)
-    catch err
-        println(result)
-        println(typeof(result))
-        println(propertynames(result))
-        println(branches)
-        JSON3.read(result.Data)
-    end
+    json = JSON3.read(result.Data)
     for (branch, nodes) in zip(branches, values(json.data.nodes))
         if isnothing(nodes)
             println(branch)
