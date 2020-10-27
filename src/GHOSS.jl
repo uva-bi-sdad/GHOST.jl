@@ -7,7 +7,7 @@ module GHOSS
 
 # using Base.Iterators: flatten
 using DataFrames: DataFrames, AbstractDataFrame, DataFrame, order, groupby
-using Diana: Diana, HTTP, Client, GraphQLClient,
+using Diana: Diana, HTTP, Client, GraphQLClient, Result,
              # HTTP
              HTTP.request, HTTP.ExceptionRequest.StatusError
 using Distributed: addprocs, @everywhere, fetch, @spawnat, workers, remotecall, remotecall_eval, Future, @sync, @distributed
