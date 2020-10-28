@@ -50,6 +50,8 @@ function query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::N
         JSON3.read(result.Data) 
     catch err
         println(result.Data)
+        println(result)
+        println(vars)
         throw(err)
     end
     for (branch, nodes) in zip(branches, values(json.data.nodes))
