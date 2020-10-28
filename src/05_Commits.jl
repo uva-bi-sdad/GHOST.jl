@@ -55,12 +55,15 @@ function query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::N
     for (branch, nodes) in zip(branches, values(json.data.nodes))
         if isnothing(nodes)
             execute(conn, "UPDATE $schema.repos SET status = 'NOT_FOUND' WHERE branch = '$branch';")
-        elseif any(isnothing, nodes)
-            execute(conn, "UPDATE $schema.repos SET status = 'SERVICE_UNAVAILABLE' WHERE branch = '$branch';")
         else
             for edge in nodes.target.history.edges
-                for node in values(edge)
-                    push!(output, parse_commit(branch, node))
+                nodes = values(edge)
+                if any(isnothing, nodes)
+                    execute(conn, "UPDATE $schema.repos SET status = 'SERVICE_UNAVAILABLE' WHERE branch = '$branch';")
+                else
+                    for node in nodes
+                        push!(output, parse_commit(branch, node))
+                    end
                 end
             end
         end
