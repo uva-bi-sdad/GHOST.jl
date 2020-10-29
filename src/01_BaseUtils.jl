@@ -120,7 +120,7 @@ function graphql(
             result.Data ≠ """{"errors":[{"type":"RATE_LIMITED","message":"API rate limit exceeded"}]}"""
         retries += 1
     end
-    @assert isok (query = query, vars = vars, result = result)
+    # @assert isok (query = query, vars = vars, result = result)
     update!(obj)
     result
 end
