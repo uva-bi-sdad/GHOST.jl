@@ -49,7 +49,12 @@ function query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::N
     json = try
         JSON3.read(result.Data)
     catch err
-        length(branches) == 1 && return err
+        if length(branches) == 1
+            println(query)
+            println(vars)
+            println(json)
+            throw(err)
+        end
         query_commits_repos_1_10(view(branches, 1:length(branches) ÷ 2))
         query_commits_repos_1_10(view(branches, length(branches) ÷ 2 + 1:lastindex(branches)))
         return
