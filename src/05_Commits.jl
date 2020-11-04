@@ -50,13 +50,11 @@ function query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::N
         JSON3.read(result.Data)
     catch err
         if length(branches) == 1
-            println(query)
-            println(vars)
-            println(json)
-            throw(err)
+            execute(conn, "UPDATE $schema.repos SET status = 'FOR_LATER' WHERE branch = '$(only(branches))';")
+        else
+            query_commits_repos_1_10(view(branches, 1:length(branches) ÷ 2))
+            query_commits_repos_1_10(view(branches, length(branches) ÷ 2 + 1:lastindex(branches)))
         end
-        query_commits_repos_1_10(view(branches, 1:length(branches) ÷ 2))
-        query_commits_repos_1_10(view(branches, length(branches) ÷ 2 + 1:lastindex(branches)))
         return
     end
     for (branch, nodes) in zip(branches, values(json.data.nodes))
