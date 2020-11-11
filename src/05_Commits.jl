@@ -29,9 +29,9 @@ function parse_commit(branch, node)
      deletions = node.deletions)
 end
 """
-    query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::Nothing
+    query_commits_simple(branches::AbstractVector{<:AbstractString}, batch_size::Integer)::Nothing
 """
-function query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::Nothing
+function query_commits_simple(branches::AbstractVector{<:AbstractString}, batch_size::Integer)::Nothing
     @unpack conn, schema = PARALLELENABLER
     output = DataFrame(vcat(fill(String, 4), fill(Vector{Union{Missing,String}}, 3), fill(Int, 2)),
                        [:branch, :id, :sha1, :committed_ts, :emails, :names, :users, :additions, :deletions],
@@ -44,7 +44,7 @@ function query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::N
         string
     vars = Dict("until" => "2020-01-01T00:00:00Z",
                 "nodes" => branches,
-                "first" => 10)
+                "first" => batch_size)
     result = graphql(query, vars = vars)
     json = try
         json = JSON3.read(result.Data)
@@ -53,8 +53,8 @@ function query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::N
         if length(branches) == 1
             execute(conn, "UPDATE $schema.repos SET status = 'FOR_LATER' WHERE branch = '$(only(branches))';")
         else
-            query_commits_repos_1_10(view(branches, 1:length(branches) ÷ 2))
-            query_commits_repos_1_10(view(branches, length(branches) ÷ 2 + 1:lastindex(branches)))
+            query_commits_simple(view(branches, 1:length(branches) ÷ 2), batch_size)
+            query_commits_simple(view(branches, length(branches) ÷ 2 + 1:lastindex(branches)), batch_size)
         end
         return
     end
