@@ -47,7 +47,8 @@ function query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::N
                 "first" => 10)
     result = graphql(query, vars = vars)
     json = try
-        JSON3.read(result.Data)
+        json = JSON3.read(result.Data)
+        json.data
     catch err
         if length(branches) == 1
             execute(conn, "UPDATE $schema.repos SET status = 'FOR_LATER' WHERE branch = '$(only(branches))';")
@@ -57,13 +58,7 @@ function query_commits_repos_1_10(branches::AbstractVector{<:AbstractString})::N
         end
         return
     end
-    if !haskey(json, :data)
-        println(json)
-        println(query)
-        println(vars)
-        json.data
-    end
-    for (branch, nodes) in zip(branches, values(json.data.nodes))
+    for (branch, nodes) in zip(branches, values(json.nodes))
         if isnothing(nodes)
             execute(conn, "UPDATE $schema.repos SET status = 'NOT_FOUND' WHERE branch = '$branch';")
         else
