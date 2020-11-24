@@ -3,7 +3,9 @@
 
 This parses the email, name, and ID of the author node.
 """
-parse_author(node) = (email = node.email, name = node.name, id = isnothing(node.user) ? missing : node.user.id)
+parse_author(node) = (email = escape_string(node.email),
+                      name = escape_string(node.name),
+                      id = isnothing(node.user) ? missing : escape_string(node.user.id))
 """
     parse_commit(branch, node)::NamedTuple
 
@@ -17,7 +19,7 @@ function parse_commit(branch, node)
     authors = parse_author.(getproperty.(node.authors.edges, :node))
     emails = getproperty.(authors, :email)
     names = getproperty.(authors, :name)
-    users = [ isa(elem, AbstractString) ? escape_string(elem) : elem for elem in getproperty.(authors, :id) ]
+    users = getproperty.(authors, :id)
     (branch = branch,
      id = node.id,
      sha1 = node.oid,
