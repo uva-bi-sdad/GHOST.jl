@@ -74,13 +74,18 @@ function query_commits_simple(branches::AbstractVector{<:AbstractString}, batch_
             end
         end
     end
-    execute(conn, "BEGIN;")
-    load!(output,
-          conn,
-          string("INSERT INTO $schema.commits VALUES (",
-                 join(("\$$i" for i in 1:size(output, 2)), ','),
-                 ") ON CONFLICT ON CONSTRAINT commits_pkey DO NOTHING;"))
-    execute(conn, "COMMIT;")
+    try
+        execute(conn, "BEGIN;")
+        load!(output,
+              conn,
+              string("INSERT INTO $schema.commits VALUES (",
+                     join(("\$$i" for i in 1:size(output, 2)), ','),
+                     ") ON CONFLICT ON CONSTRAINT commits_pkey DO NOTHING;"))
+        execute(conn, "COMMIT;")
+    catch err
+        println(branches)
+        throw(err)
+    end
     execute(conn,
             """
             UPDATE $schema.repos
