@@ -15,9 +15,9 @@ function parse_commit(branch, node)
         throw(ErrorException("Weird thing going on"))
     end
     authors = parse_author.(getproperty.(node.authors.edges, :node))
-    emails = [ isa(elem, AbstractString) ? replace(elem, r"(\{|\}|\")" => s"\\\1}") : missing for elem in getproperty.(authors, :email) ]
-    names = [ isa(elem, AbstractString) ? replace(elem, r"(\{|\}|\")" => s"\\\1}") : missing for elem in getproperty.(authors, :name) ]
-    users = [ isa(elem, AbstractString) ? replace(elem, r"(\{|\}|\")" => s"\\\1}") : missing for elem in getproperty.(authors, :id) ]
+    emails = getproperty.(authors, :email)
+    names = getproperty.(authors, :name)
+    users = getproperty.(authors, :id)
     (branch = branch,
      id = node.id,
      sha1 = node.oid,
