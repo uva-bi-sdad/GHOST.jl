@@ -15,9 +15,9 @@ function parse_commit(branch, node)
         throw(ErrorException("Weird thing going on"))
     end
     authors = parse_author.(getproperty.(node.authors.edges, :node))
-    emails = escape_string.(getproperty.(authors, :email))
-    names = escape_string.(getproperty.(authors, :name))
-    users = escape_string.(getproperty.(authors, :id))
+    emails = getproperty.(authors, :email)
+    names = getproperty.(authors, :name)
+    users = [ isa(elem, AbstractString) ? escape_string(elem) : elem for elem in getproperty.(authors, :id) ]
     (branch = branch,
      id = node.id,
      sha1 = node.oid,
