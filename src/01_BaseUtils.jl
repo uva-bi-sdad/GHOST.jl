@@ -80,7 +80,8 @@ end
 """
     graphql(obj::GitHubPersonalAccessToken,
             operationName::AbstractString,
-            vars::Dict{String})
+            vars::Dict{String};
+            max_retries::Integer = 3)
 
 Return JSON of the GraphQL query.
 """
@@ -89,6 +90,7 @@ function graphql(
     query::AbstractString = query,
     operationName::AbstractString = string(match(r"(?<=query )\w+(?=[\(|\{])", query).match);
     vars::Dict{String} = Dict{String,Any}(),
+    max_retries::Integer = 3,
     )
     obj = PARALLELENABLER.pat
     # operationName = match(r"(?<=query )\w+", query).match
@@ -108,7 +110,7 @@ function graphql(
     isok = isa(result, Result) &&
         result.Info.status == 200 &&
         result.Data ≠ """{"errors":[{"type":"RATE_LIMITED","message":"API rate limit exceeded"}]}"""
-    while !isok && retries < 3
+    while !isok && retries < max_retries
         sleep(61)
         result = try
             obj.client.Query(query, operationName = operationName, vars = vars)

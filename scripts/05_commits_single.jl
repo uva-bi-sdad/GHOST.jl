@@ -2,7 +2,7 @@ using GHOSS
 using GHOSS: @unpack
 setup()
 setup_parallel()
-@unpack conn, schema = GHOSS.PARALLELENABLER
+@unpack conn, schema, pat = GHOSS.PARALLELENABLER
 data = execute(conn,
                "SELECT branch FROM $(schema).repos WHERE status = 'Init' ORDER BY commits;",
                not_null = true) |>

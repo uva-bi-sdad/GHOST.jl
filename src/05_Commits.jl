@@ -46,9 +46,9 @@ function query_commits(branch::AbstractString)::Nothing
         string
     vars = Dict("until" => "2020-01-01T00:00:00Z",
                 "node" => branch,
-                "first" => 100,
+                "first" => 32,
                 )
-    result = graphql(query, vars = vars)
+    result = graphql(query, vars = vars, max_retries = 1)
     json = try
         json = JSON3.read(result.Data)
         json = json.data.node.target.history
@@ -61,7 +61,7 @@ function query_commits(branch::AbstractString)::Nothing
     end
     while json.pageInfo.hasNextPage
         vars["after"] = json.pageInfo.endCursor
-        result = graphql(query, vars = vars)
+        result = graphql(query, vars = vars, max_retries = 1)
         json = try
             json = JSON3.read(result.Data)
             json = json.data.node.target.history
