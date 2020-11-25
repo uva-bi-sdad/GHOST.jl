@@ -1,0 +1,36 @@
+query Commits($node: ID!, $until: GitTimestamp, $first: Int!, $after: String) {
+  node(id: $node) {
+    ... on Ref {
+      target {
+        ... on Commit {
+          history(until: $until, first: $first, after: $after) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            edges {
+              node {
+                id
+                oid
+                committedDate
+                authors(first: 100) {
+                  edges {
+                    node {
+                      user {
+                        id
+                      }
+                      name
+                      email
+                    }
+                  }
+                }
+                additions
+                deletions
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

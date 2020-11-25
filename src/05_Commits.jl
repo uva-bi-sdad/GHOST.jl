@@ -31,6 +31,70 @@ function parse_commit(branch, node)
      deletions = node.deletions)
 end
 """
+    query_commits(branch::AbstractString)::Nothing
+"""
+function query_commits(branch::AbstractString)::Nothing
+    @unpack conn, schema = PARALLELENABLER
+    output = DataFrame(vcat(fill(String, 4), fill(Vector{Union{Missing,String}}, 3), fill(Int, 2)),
+                       [:branch, :id, :sha1, :committed_ts, :emails, :names, :users, :additions, :deletions],
+                       0)
+    query = String(read(joinpath(dirname(pathof(GHOSS)), "assets", "graphql", "04_commits_single.graphql"))) |>
+        (obj -> replace(obj, r"\s+" => " ")) |>
+        (obj -> replace(obj, r"\s+(\{|\}|\:)\s*" => s"\1")) |>
+        (obj -> replace(obj, r"(:|,|\.{3})\s*" => s"\1")) |>
+        strip |>
+        string
+    vars = Dict("until" => "2020-01-01T00:00:00Z",
+                "node" => branch,
+                "first" => 100,
+                )
+    result = graphql(query, vars = vars)
+    json = try
+        json = JSON3.read(result.Data)
+        json = json.data.node.target.history
+    catch err
+        println(branch)
+        throw(err)
+    end
+    for edge in json.edges
+        push!(output, parse_commit(branch, edge.node))
+    end
+    while json.pageInfo.hasNextPage
+        vars["after"] = json.pageInfo.endCursor
+        result = graphql(query, vars = vars)
+        json = try
+            json = JSON3.read(result.Data)
+            json = json.data.node.target.history
+        catch err
+            println(branch)
+            throw(err)
+        end
+        for edge in json.edges
+            push!(output, parse_commit(branch, edge.node))
+        end
+    end
+    try
+        execute(conn, "BEGIN;")
+        load!(output,
+              conn,
+              string("INSERT INTO $schema.commits VALUES (",
+                     join(("\$$i" for i in 1:size(output, 2)), ','),
+                     ") ON CONFLICT ON CONSTRAINT commits_pkey DO NOTHING;"))
+        execute(conn, "COMMIT;")
+    catch err
+        println(branch)
+        throw(err)
+    end
+    execute(conn,
+            """
+            UPDATE $schema.repos
+            SET status = 'Done'
+            WHERE branch = '$branch'
+            ;
+            """)
+    nothing
+end
+"""
     query_commits_simple(branches::AbstractVector{<:AbstractString}, batch_size::Integer)::Nothing
 """
 function query_commits_simple(branches::AbstractVector{<:AbstractString}, batch_size::Integer)::Nothing
