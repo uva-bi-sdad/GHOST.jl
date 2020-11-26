@@ -51,6 +51,12 @@ function query_commits(branch::AbstractString)::Nothing
     result = graphql(query, vars = vars, max_retries = 1)
     json = try
         json = JSON3.read(result.Data)
+        if haskey(json, :errors)
+            if first(json.errors).type == "NOT_FOUND"
+                execute(conn, "UPDATE $schema.repos SET status = 'NOT_FOUND' WHERE branch = '$branch';")
+                return
+            end
+        end
         json = json.data.node.target.history
     catch err
         println(branch)
