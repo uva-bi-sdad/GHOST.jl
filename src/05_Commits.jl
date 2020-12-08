@@ -60,6 +60,7 @@ function query_commits(branch::AbstractString)::Nothing
         json = json.data.node.target.history
     catch err
         println(branch)
+        println(result)
         throw(err)
     end
     for edge in json.edges
@@ -73,6 +74,7 @@ function query_commits(branch::AbstractString)::Nothing
             json = json.data.node.target.history
         catch err
             println(branch)
+            println(result)
             throw(err)
         end
         for edge in json.edges
