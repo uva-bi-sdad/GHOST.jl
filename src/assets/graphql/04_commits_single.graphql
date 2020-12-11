@@ -1,11 +1,10 @@
-query Commits($node: ID!, $until: GitTimestamp, $first: Int!, $after: String) {
+query Commits($node: ID!, $until: GitTimestamp, $first: Int!) {
   node(id: $node) {
     ... on Ref {
       target {
         ... on Commit {
-          history(until: $until, first: $first, after: $after) {
+          history(until: $until, first: $first) {
             pageInfo {
-              endCursor
               hasNextPage
             }
             edges {

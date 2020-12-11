@@ -35,53 +35,88 @@ end
 """
 function query_commits(branch::AbstractString)::Nothing
     @unpack conn, schema = PARALLELENABLER
+    until = execute(conn, "SELECT MIN(committedat) AS until FROM gh_2007_2019.commits WHERE branch = '$branch';") |>
+        (obj -> only(getproperty.(obj, :until)))
+    until = coalesce(until, DateTime("2020-01-01"))
     output = DataFrame(vcat(fill(String, 4), fill(Vector{Union{Missing,String}}, 3), fill(Int, 2)),
                        [:branch, :id, :sha1, :committed_ts, :emails, :names, :users, :additions, :deletions],
                        0)
-    query = String(read(joinpath(dirname(pathof(GHOSS)), "assets", "graphql", "04_commits_single.graphql"))) |>
+    query = String(read(joinpath(pkgdir(GHOSS), "src", "assets", "graphql", "04_commits_single.graphql"))) |>
         (obj -> replace(obj, r"\s+" => " ")) |>
         (obj -> replace(obj, r"\s+(\{|\}|\:)\s*" => s"\1")) |>
         (obj -> replace(obj, r"(:|,|\.{3})\s*" => s"\1")) |>
         strip |>
         string
-    vars = Dict("until" => "2020-01-01T00:00:00Z",
+    vars = Dict("until" => string(until, "Z"),
                 "node" => branch,
                 "first" => 32,
                 )
-    result = graphql(query, vars = vars, max_retries = 1)
+    success = false
     json = try
-        json = JSON3.read(result.Data)
-        if haskey(json, :errors)
-            if first(json.errors).type == "NOT_FOUND"
-                execute(conn, "UPDATE $schema.repos SET status = 'NOT_FOUND' WHERE branch = '$branch';")
-                return
+        while !success
+            result = graphql(query, vars = vars, max_retries = 1)
+            json = JSON3.read(result.Data)
+            if haskey(json, :errors)
+                if first(json.errors).type == "NOT_FOUND"
+                    execute(conn, "UPDATE $schema.repos SET status = 'NOT_FOUND' WHERE branch = '$branch';")
+                    return
+                end
+            end
+            try
+                json = json.data.node.target.history
+                success = !isempty(json.edges)
+            catch err
+                vars["first"] == 1 && throw(ErrorException("$branch is not playing nice."))
+                vars["first"] ÷= 2
+                sleep(0.25)
             end
         end
-        json = json.data.node.target.history
+        json
     catch err
-        println(branch)
-        println(result)
-        throw(err)
+        throw(ErrorException("$branch is not playing nice ($first)."))
     end
     for edge in json.edges
         push!(output, parse_commit(branch, edge.node))
     end
+    execute(conn, "BEGIN;")
+    load!(output,
+          conn,
+          string("INSERT INTO $schema.commits VALUES (",
+                 join(("\$$i" for i in 1:size(output, 2)), ','),
+                 ") ON CONFLICT ON CONSTRAINT commits_pkey DO NOTHING;"))
+    execute(conn, "COMMIT;")
     while json.pageInfo.hasNextPage
-        vars["after"] = json.pageInfo.endCursor
-        result = graphql(query, vars = vars, max_retries = 1)
+        sleep(0.5)
+        vars["until"] = string(DateTime(output[end,:committed_ts]), "Z")
+        vars["first"] = 32
+        success = false
         json = try
-            json = JSON3.read(result.Data)
-            json = json.data.node.target.history
+            while !success
+                result = graphql(query, vars = vars, max_retries = 1)
+                json = JSON3.read(result.Data)
+                if haskey(json, :errors)
+                    if first(json.errors).type == "NOT_FOUND"
+                        execute(conn, "UPDATE $schema.repos SET status = 'NOT_FOUND' WHERE branch = '$branch';")
+                        return
+                    end
+                end
+                try
+                    json = json.data.node.target.history
+                    success = !isempty(json.edges)
+                catch err
+                    vars["first"] == 1 && throw(ErrorException("$branch is not playing nice."))
+                    vars["first"] ÷= 2
+                    sleep(0.25)
+                end
+            end
+            json
         catch err
-            println(branch)
-            println(result)
-            throw(err)
+            throw(ErrorException("$branch is not playing nice ($first)."))
         end
+        empty!(output)
         for edge in json.edges
             push!(output, parse_commit(branch, edge.node))
         end
-    end
-    try
         execute(conn, "BEGIN;")
         load!(output,
               conn,
@@ -89,9 +124,6 @@ function query_commits(branch::AbstractString)::Nothing
                      join(("\$$i" for i in 1:size(output, 2)), ','),
                      ") ON CONFLICT ON CONSTRAINT commits_pkey DO NOTHING;"))
         execute(conn, "COMMIT;")
-    catch err
-        println(branch)
-        throw(err)
     end
     execute(conn,
             """
