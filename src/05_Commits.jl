@@ -113,7 +113,9 @@ function query_commits(branch::AbstractString)::Nothing
         catch err
             throw(ErrorException("$branch is not playing nice ($first)."))
         end
-        empty!(output)
+        output = DataFrame(vcat(fill(String, 4), fill(Vector{Union{Missing,String}}, 3), fill(Int, 2)),
+                       [:branch, :id, :sha1, :committed_ts, :emails, :names, :users, :additions, :deletions],
+                       0)
         for edge in json.edges
             push!(output, parse_commit(branch, edge.node))
         end
