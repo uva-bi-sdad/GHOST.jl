@@ -1,8 +1,8 @@
-using GHOSS
+using GHOST
 time_start = now()
 setup()
 setup_parallel(5)
-spdxs = execute(GHOSS.PARALLELENABLER.conn,
+spdxs = execute(GHOST.PARALLELENABLER.conn,
                 "SELECT spdx FROM gh_2007_2019.licenses ORDER BY spdx;",
                 not_null = true) |>
     (obj -> getproperty.(obj, :spdx))

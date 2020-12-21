@@ -11,7 +11,7 @@ Tool for collecting GitHub data about Open Source Repositories and Contributors
 
 [bsi]: https://github.com/uva-bi-sdad/GHOST.jl/workflows/CI/badge.svg
 [bsu]: https://github.com/uva-bi-sdad/GHOST.jl/actions?workflow=CI
-[cci]: https://codecov.io/gh/uva-bi-sdad/GHOST.jl/branch/main/graph/badge.svg
+[cci]: https://codecov.io/gh/uva-bi-sdad/GHOST.jl/branch/main/graph/badge.svg?token=O8VM0Vr7e2
 [ccu]: https://codecov.io/gh/uva-bi-sdad/GHOST.jl
 [ddi]: https://img.shields.io/badge/docs-dev-blue?style=plastic
 [ddu]: https://uva-bi-sdad.github.io/GHOST.jl/dev/

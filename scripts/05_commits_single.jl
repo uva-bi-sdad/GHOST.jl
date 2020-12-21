@@ -1,12 +1,13 @@
-using GHOSS
-using GHOSS: @unpack
+using GHOST
+using GHOST: @unpack
 setup()
 setup_parallel()
-@unpack conn, schema, pat = GHOSS.PARALLELENABLER
+@unpack conn, schema, pat = GHOST.PARALLELENABLER
 data = execute(conn,
                "SELECT branch FROM $(schema).repos WHERE status = 'Init' ORDER BY commits;",
                not_null = true) |>
     (obj -> getproperty.(obj, :branch))
+
 time_start = now()
 println(time_start)
 @sync @distributed for branch in data

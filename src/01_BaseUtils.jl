@@ -144,9 +144,9 @@ function setup(dbname::AbstractString = "sdad", schema::AbstractString = "gh_200
     conn = Connection("dbname = $dbname")
     pat = DataFrame(execute(conn, "SELECT login, token FROM $schema.pats ORDER BY login LIMIT 1;"))
     pat = only(GitHubPersonalAccessToken.(pat.login, pat.token))
-    GHOSS.PARALLELENABLER.conn = Connection("dbname = $dbname")
-    GHOSS.PARALLELENABLER.schema = schema
-    GHOSS.PARALLELENABLER.pat = pat
+    GHOST.PARALLELENABLER.conn = Connection("dbname = $dbname")
+    GHOST.PARALLELENABLER.schema = schema
+    GHOST.PARALLELENABLER.pat = pat
     execute(conn,
             replace(join(["CREATE EXTENSION IF NOT EXISTS btree_gist; CREATE SCHEMA IF NOT EXISTS schema;",
                           String(read(joinpath(@__DIR__, "assets", "sql", "licenses.sql"))),
@@ -175,15 +175,15 @@ function setup_parallel(limit::Integer = 0)
     pats = GitHubPersonalAccessToken.(pat.login, pat.token)
     npats = length(pats)
     addprocs(npats, exeflags = `--proj`)
-    remotecall_eval(Main, workers(), :(using GHOSS))
+    remotecall_eval(Main, workers(), :(using GHOST))
     @everywhere workers() dbname = $dbname
-    @everywhere workers() GHOSS.PARALLELENABLER.conn = Connection("dbname = $dbname")
-    @everywhere workers() GHOSS.PARALLELENABLER.schema = $schema
-    GHOSS.READY.x = Vector{Future}(undef, npats)
+    @everywhere workers() GHOST.PARALLELENABLER.conn = Connection("dbname = $dbname")
+    @everywhere workers() GHOST.PARALLELENABLER.schema = $schema
+    GHOST.READY.x = Vector{Future}(undef, npats)
     for proc ∈ workers()
-        GHOSS.READY.x[proc - 1] = GHOSS.@spawnat proc nothing
+        GHOST.READY.x[proc - 1] = GHOST.@spawnat proc nothing
         pat = pats[proc - 1]
-        expr = :(GHOSS.PARALLELENABLER.pat = $pat)
+        expr = :(GHOST.PARALLELENABLER.pat = $pat)
         remotecall_eval(Main, proc, expr)
     end
 end

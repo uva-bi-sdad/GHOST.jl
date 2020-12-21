@@ -1,10 +1,10 @@
-using GHOSS
-using GHOSS: @unpack
+using GHOST
+using GHOST: @unpack
 setup()
 setup_parallel()
-@unpack conn, schema = GHOSS.PARALLELENABLER
+@unpack conn, schema = GHOST.PARALLELENABLER
 data = execute(conn,
-               String(read(joinpath(dirname(pathof(GHOSS)), "assets", "sql", "branches_min_max.sql"))) |>
+               String(read(joinpath(dirname(pathof(GHOST)), "assets", "sql", "branches_min_max.sql"))) |>
                    (obj -> replace(obj, "schema" => schema)) |>
                    (obj -> replace(obj, "min_lim" => 0)) |>
                    (obj -> replace(obj, "max_lim" => 100)),

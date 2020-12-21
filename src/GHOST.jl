@@ -1,9 +1,9 @@
 """
-    GHOSS
+    GHOST
 
 This is a module for collecting GitHub data about open source repositories and contributors.
 """
-module GHOSS
+module GHOST
 
 # using Base.Iterators: flatten
 using DataFrames: DataFrames, AbstractDataFrame, DataFrame, order, groupby
@@ -46,7 +46,7 @@ const GH_FIRST_REPO_TS = DateTime("2007-10-29T14:37:16")
 # for (root, dirs, files) in walkdir(joinpath(@__DIR__, "src"))
 for (root, dirs, files) in walkdir(joinpath(@__DIR__))
     for file in files
-        if occursin("assets", root) || isequal("GHOSS.jl", file)
+        if occursin("assets", root) || isequal("GHOST.jl", file)
         else
             include(joinpath(root, file))
         end

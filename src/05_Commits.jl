@@ -41,7 +41,7 @@ function query_commits(branch::AbstractString)::Nothing
     output = DataFrame(vcat(fill(String, 4), fill(Vector{Union{Missing,String}}, 3), fill(Int, 2)),
                        [:branch, :id, :sha1, :committed_ts, :emails, :names, :users, :additions, :deletions],
                        0)
-    query = String(read(joinpath(pkgdir(GHOSS), "src", "assets", "graphql", "04_commits_single.graphql"))) |>
+    query = String(read(joinpath(pkgdir(GHOST), "src", "assets", "graphql", "04_commits_single.graphql"))) |>
         (obj -> replace(obj, r"\s+" => " ")) |>
         (obj -> replace(obj, r"\s+(\{|\}|\:)\s*" => s"\1")) |>
         (obj -> replace(obj, r"(:|,|\.{3})\s*" => s"\1")) |>
@@ -144,7 +144,7 @@ function query_commits_simple(branches::AbstractVector{<:AbstractString}, batch_
     output = DataFrame(vcat(fill(String, 4), fill(Vector{Union{Missing,String}}, 3), fill(Int, 2)),
                        [:branch, :id, :sha1, :committed_ts, :emails, :names, :users, :additions, :deletions],
                        0)
-    query = String(read(joinpath(dirname(pathof(GHOSS)), "assets", "graphql", "03_commits.graphql"))) |>
+    query = String(read(joinpath(dirname(pathof(GHOST)), "assets", "graphql", "03_commits.graphql"))) |>
         (obj -> replace(obj, r"\s+" => " ")) |>
         (obj -> replace(obj, r"\s+(\{|\}|\:)\s*" => s"\1")) |>
         (obj -> replace(obj, r"(:|,|\.{3})\s*" => s"\1")) |>

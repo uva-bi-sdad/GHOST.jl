@@ -30,14 +30,14 @@ function query_intervals(created::Vector{Vector{Interval{DateTime,Closed,Open}}}
         ( fetch(@spawnat(
             w,
             (proc = w,
-             remaining = GHOSS.PARALLELENABLER.pat.limits.graphql.remaining,
-             resetat = GHOSS.PARALLELENABLER.pat.limits.graphql.reset)
+             remaining = GHOST.PARALLELENABLER.pat.limits.graphql.remaining,
+             resetat = GHOST.PARALLELENABLER.pat.limits.graphql.reset)
             )) for w in workers()
         ) |>
         DataFrame
     maptovalidprocs = sort!(graphqlremaining, (order(2, rev = true), 3))[!,1][1:min(length(READY.x), length(created))] .- 1
     for w in maptovalidprocs
-        READY.x[w] = remotecall(GHOSS.query_intervals, w + 1, popfirst!(created))
+        READY.x[w] = remotecall(GHOST.query_intervals, w + 1, popfirst!(created))
     end
     while !isempty(created)
         # local w
@@ -46,7 +46,7 @@ function query_intervals(created::Vector{Vector{Interval{DateTime,Closed,Open}}}
             sleep(3)
         else
             append!(output, fetch(READY.x[maptovalidprocs][w]))
-            READY.x[maptovalidprocs[w]] = remotecall(GHOSS.query_intervals, maptovalidprocs[w] + 1, popfirst!(created))
+            READY.x[maptovalidprocs[w]] = remotecall(GHOST.query_intervals, maptovalidprocs[w] + 1, popfirst!(created))
         end
     end
     while any(!isready, READY.x)
@@ -120,7 +120,7 @@ function queries(spdx::AbstractString)
     # spdx = "mit"
     # schema = "gh_2007_$(Dates.year(floor(now(), Year) - Day(1)))"
     @unpack conn, schema = PARALLELENABLER
-    @everywhere GHOSS.PARALLELENABLER.spdx = $spdx
+    @everywhere GHOST.PARALLELENABLER.spdx = $spdx
     calendaryear = parse(Int, schema[end - 3:end])
     created = vcat(floor(GH_FIRST_REPO_TS, Day),
                    DateTime("2009-01-01"):Month(6):DateTime("2010-01-01"),
@@ -132,8 +132,8 @@ function queries(spdx::AbstractString)
         unique
     created = [ Interval(start, stop, true, false) for (start, stop) in zip(@view(created[1:end - 1]), @view(created[2:end])) ]
     created = [ created[start:stop] for (start, stop) in zip(1:185:length(created), vcat((0:185:length(created))[2:end], length(created))) ]
-    data = GHOSS.query_intervals(created)
-    data = GHOSS.prune(data)
+    data = GHOST.query_intervals(created)
+    data = GHOST.prune(data)
     data = reduce(vcat, cleanintervals(row) for row in eachrow(data))
     toreplace = ismissing.(data.count)
     created = data.created[toreplace]

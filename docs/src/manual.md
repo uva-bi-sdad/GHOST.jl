@@ -59,10 +59,6 @@ We are interested in finding every repository on GitHub that fits the following 
 - Is not a fork
 - Is not a mirror
 - Is not archived
-- Was created on GitHub during
-```
-[2007-10-29T14:37:16+00, 2020-01-01T00:00:00+00)
-```
 
 !!! info
 
@@ -148,10 +144,10 @@ The `commits` table contains this data and is used to update the status of the r
 
 ## How To Use
 
-In order to use this package, refer to the example in the [test suite](https://github.com/uva-bi-sdad/GHOSS.jl/blob/master/test/runtests.jl) and the [CI script](https://github.com/uva-bi-sdad/GHOSS.jl/blob/master/.github/workflows/ci.yml). The prefered solution is through a containerized application such as the CI using Docker but any environment with the required components will do.
+In order to use this package, refer to the example in the [test suite](https://github.com/uva-bi-sdad/GHOST.jl/blob/main/test/runtests.jl) and the [CI script](https://github.com/uva-bi-sdad/GHOST.jl/blob/main/.github/workflows/ci.yml). The prefered solution is through a containerized application such as the CI using Docker but any environment with the required components will do.
 
 ### Components
 
 - GitHub Personal Access Tokens with `read_org` access
-- Julia v1 (current release v1.4.0)
+- Julia v1 (current release v1.5.3)
 - A PostgreSQL database connection (tested with v11 and v12)

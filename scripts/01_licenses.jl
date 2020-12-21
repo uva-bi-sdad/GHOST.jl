@@ -1,3 +1,3 @@
-using GHOSS
+using GHOST
 setup()
 licenses()
