@@ -1,9 +1,9 @@
-query Commits($node: ID!, $until: GitTimestamp, $first: Int!) {
+query Commits($node: ID!, $since: GitTimestamp, $until: GitTimestamp, $first: Int!) {
   node(id: $node) {
     ... on Ref {
       target {
         ... on Commit {
-          history(until: $until, first: $first) {
+          history(since: $since, until: $until, first: $first) {
             pageInfo {
               hasNextPage
             }

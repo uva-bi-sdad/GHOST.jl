@@ -34,10 +34,10 @@ end
     query_commits(branch::AbstractString)::Nothing
 """
 function query_commits(branch::AbstractString)::Nothing
-    @unpack conn, schema = PARALLELENABLER
-    until = execute(conn, "SELECT MIN(committedat) AS until FROM gh_2007_2019.commits WHERE branch = '$branch';") |>
-        (obj -> only(getproperty.(obj, :until)))
-    until = coalesce(until, DateTime("2020-01-01"))
+    @unpack conn, schema = GHOST.PARALLELENABLER
+    since = execute(conn, "SELECT MIN(committedat) AS since FROM gh_2007_2019.commits WHERE branch = '$branch';") |>
+        (obj -> only(getproperty.(obj, :since)))
+    since = coalesce(since, GHOST.GH_FIRST_REPO_TS)
     output = DataFrame(vcat(fill(String, 4), fill(Vector{Union{Missing,String}}, 3), fill(Int, 2)),
                        [:branch, :id, :sha1, :committed_ts, :emails, :names, :users, :additions, :deletions],
                        0)
@@ -47,7 +47,8 @@ function query_commits(branch::AbstractString)::Nothing
         (obj -> replace(obj, r"(:|,|\.{3})\s*" => s"\1")) |>
         strip |>
         string
-    vars = Dict("until" => string(until, "Z"),
+    vars = Dict("since" => string(since, "Z"),
+                "until" => "2020-01-01T00:00:00Z",
                 "node" => branch,
                 "first" => 32,
                 )
@@ -76,7 +77,7 @@ function query_commits(branch::AbstractString)::Nothing
         throw(ErrorException("$branch is not playing nice ($first)."))
     end
     for edge in json.edges
-        push!(output, parse_commit(branch, edge.node))
+        push!(output, GHOST.parse_commit(branch, edge.node))
     end
     execute(conn, "BEGIN;")
     load!(output,
@@ -117,7 +118,7 @@ function query_commits(branch::AbstractString)::Nothing
                        [:branch, :id, :sha1, :committed_ts, :emails, :names, :users, :additions, :deletions],
                        0)
         for edge in json.edges
-            push!(output, parse_commit(branch, edge.node))
+            push!(output, GHOST.parse_commit(branch, edge.node))
         end
         execute(conn, "BEGIN;")
         load!(output,
@@ -134,6 +135,7 @@ function query_commits(branch::AbstractString)::Nothing
             WHERE branch = '$branch'
             ;
             """)
+    println("$branch done at $(now())")
     nothing
 end
 """
