@@ -50,7 +50,7 @@ function query_commits(branch::AbstractString)::Nothing
     vars = Dict("since" => string(since, "Z"),
                 "until" => "2020-01-01T00:00:00Z",
                 "node" => branch,
-                "first" => 32,
+                "first" => 64,
                 )
     success = false
     json = try
@@ -87,9 +87,9 @@ function query_commits(branch::AbstractString)::Nothing
                  ") ON CONFLICT ON CONSTRAINT commits_pkey DO NOTHING;"))
     execute(conn, "COMMIT;")
     while json.pageInfo.hasNextPage
-        sleep(0.5)
+        sleep(0.25)
         vars["until"] = string(DateTime(output[end,:committed_ts]), "Z")
-        vars["first"] = 32
+        vars["first"] = 64
         success = false
         json = try
             while !success
