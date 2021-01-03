@@ -104,7 +104,7 @@ For example,
 
 !!! info
 
-    This is table `gh_2007_2019.queries`.
+    This is table `gh_2007_2020.queries`.
 
 The `queries` table is used to store the queries and track their status. Once all the records have been obtained for the `repos` table their `done` status becomes `TRUE`.
 
@@ -120,7 +120,7 @@ The `repos` table contains the GitHub repository global node ID and the global n
 
 !!! info
 
-    This is table `gh_2007_2019.repos`.
+    This is table `gh_2007_2020.repos`.
 
 The various `status` values include:
 

@@ -2,7 +2,7 @@ WITH A AS (
     SELECT spdx,
         created,
         CEIL(count::real / 10) queries
-    FROM gh_2007_2019.queries
+    FROM gh_2007_2020.queries
     WHERE NOT done
     ORDER BY queries DESC,
         spdx

@@ -3,7 +3,7 @@ time_start = now()
 setup()
 setup_parallel(5)
 spdxs = execute(GHOST.PARALLELENABLER.conn,
-                "SELECT spdx FROM gh_2007_2019.licenses ORDER BY spdx;",
+                "SELECT spdx FROM gh_2007_2020.licenses ORDER BY spdx;",
                 not_null = true) |>
     (obj -> getproperty.(obj, :spdx))
 for spdx in spdxs

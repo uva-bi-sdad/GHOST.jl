@@ -35,7 +35,7 @@ end
 """
 function query_commits(branch::AbstractString)::Nothing
     @unpack conn, schema = GHOST.PARALLELENABLER
-    since = execute(conn, "SELECT MIN(committedat) AS since FROM gh_2007_2019.commits WHERE branch = '$branch';") |>
+    since = execute(conn, "SELECT MIN(committedat) AS since FROM gh_2007_2020.commits WHERE branch = '$branch';") |>
         (obj -> only(getproperty.(obj, :since)))
     since = coalesce(since, GHOST.GH_FIRST_REPO_TS)
     output = DataFrame(vcat(fill(String, 4), fill(Vector{Union{Missing,String}}, 3), fill(Int, 2)),

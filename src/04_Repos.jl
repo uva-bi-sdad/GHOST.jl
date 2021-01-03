@@ -30,7 +30,7 @@ function find_repos(batch::AbstractDataFrame)
                      "..",
                      format(batch.created[idx].last, "yyyy-mm-ddTHH:MM:SS\\Z"),
                      "\",type:REPOSITORY, first:10, after:\$cursor_$idx){...A}") for idx in 1:size(batch, 1)]);
-    query = string(String(read(joinpath(@__DIR__, "assets", "graphql", "02_repos.graphql"))),
+    query = string(String(read(joinpath(pkgdir(GHOST), "src", "assets", "graphql", "02_repos.graphql"))),
                           "query Search(\$until:String!,",
                           join((("\$cursor_$idx:String") for idx in 1:size(batch, 1)), ','),
                           "){$subsquery}") |>
@@ -39,7 +39,7 @@ function find_repos(batch::AbstractDataFrame)
         string;
     vars = Dict("until" => "$(parse(Int, match(r"\d{4}$", schema).match) + 1)-01-01T00:00:00Z")
     while true
-        sleep(1)
+        sleep(0.25)
         result = graphql(query, vars = vars)
         :Data ∈ propertynames(result) || return result
         json = JSON3.read(result.Data)
