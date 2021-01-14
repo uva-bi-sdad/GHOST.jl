@@ -35,3 +35,27 @@ pats = [ GitHubPersonalAccessToken(split(pat, ':')...) for pat in filter!(!isemp
         only
     @test chk
 end
+# Documentation
+@testset "Documentation" begin
+    using Documenter, GHOST
+
+    DocMeta.setdocmeta!(GHOST,
+                       :DocTestSetup,
+                       :(using GHOST, Documenter;
+                         ENV["COLUMNS"] = 120;
+                         ENV["LINES"] = 30;),
+                       recursive = true)
+    # doctest(GHOST, fix = true)
+    makedocs(sitename = "GHOST",
+             format = Documenter.HTML(assets = [joinpath("assets", "custom.css")]),
+             modules = [GHOST],
+             pages = [
+                 "Introduction" => "index.md",
+                 "Manual" => "manual.md",
+                 "API" => "api.md",
+                 ],
+             source = joinpath(prefix, "docs", "src"),
+             build = joinpath(prefix, "docs", "build"),
+             )
+    @test true
+end
