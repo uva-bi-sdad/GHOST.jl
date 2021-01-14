@@ -127,9 +127,13 @@ function graphql(
     result
 end
 """
-    setup(dbname::AbstractString = "sdad",
-          schema::AbstractString = "gh_2007_\$(Dates.year(floor(now(), Year) - Day(1)))",
-          )::Nothing
+    setup(;host::AbstractString = get(ENV, "PGHOST", "localhost"),
+           port::AbstractString = get(ENV, "PGPORT", "5432"),
+           dbname::AbstractString = get(ENV, "PGDATABASE", "postgres"),
+           user::AbstractString = get(ENV, "PGUSER", "postgres"),
+           password::AbstractString = get(ENV, "PGPASSWORD", "postgres"),
+           schema::AbstractString = "gh_2007_\$(year(floor(now(utc_tz), Year) - Day(1)))",
+           pats::Union{Nothing, Vector{GitHubPersonalAccessToken}} = nothing)
 
 Sets up your PostgreSQL database for the project.
 
@@ -140,15 +144,19 @@ julia> setup()
 
 ```
 """
-function setup(dbname::AbstractString = "sdad", schema::AbstractString = "gh_2007_$(year(floor(now(utc_tz), Year) - Day(1)))")
-    conn = Connection("dbname = $dbname")
-    pat = DataFrame(execute(conn, "SELECT login, token FROM $schema.pats ORDER BY login LIMIT 1;"))
-    pat = only(GitHubPersonalAccessToken.(pat.login, pat.token))
-    GHOST.PARALLELENABLER.conn = Connection("dbname = $dbname")
+function setup(;host::AbstractString = get(ENV, "PGHOST", "localhost"),
+                port::AbstractString = get(ENV, "PGPORT", "5432"),
+                dbname::AbstractString = get(ENV, "PGDATABASE", "postgres"),
+                user::AbstractString = get(ENV, "PGUSER", "postgres"),
+                password::AbstractString = get(ENV, "PGPASSWORD", "postgres"),
+                schema::AbstractString = "gh_2007_$(year(floor(now(utc_tz), Year) - Day(1)))",
+                pats::Union{Nothing, Vector{GitHubPersonalAccessToken}} = nothing)
+    GHOST.PARALLELENABLER.conn = Connection("host = $host port = $port dbname = $dbname user = $user password = $password")
     GHOST.PARALLELENABLER.schema = schema
-    GHOST.PARALLELENABLER.pat = pat
-    execute(conn,
+    schema = "gh_2007_$(year(floor(now(utc_tz), Year) - Day(1)))"
+    execute(GHOST.PARALLELENABLER.conn,
             replace(join(["CREATE EXTENSION IF NOT EXISTS btree_gist; CREATE SCHEMA IF NOT EXISTS schema;",
+                          String(read(joinpath(@__DIR__, "assets", "sql", "pats.sql"))),
                           String(read(joinpath(@__DIR__, "assets", "sql", "licenses.sql"))),
                           String(read(joinpath(@__DIR__, "assets", "sql", "queries.sql"))),
                           String(read(joinpath(@__DIR__, "assets", "sql", "repos.sql"))),
@@ -156,17 +164,36 @@ function setup(dbname::AbstractString = "sdad", schema::AbstractString = "gh_200
                          ],
                         ' '),
                     "schema" => schema))
+    if isnothing(pats)
+        try
+            pat = DataFrame(execute(GHOST.PARALLELENABLER.conn, "SELECT login, token FROM $schema.pats ORDER BY login LIMIT 1;"))
+            GHOST.PARALLELENABLER.pat = only(GitHubPersonalAccessToken.(pat.login, pat.token))
+        catch err
+            throw(ArgumentError("No PAT was provided nor available in the database."))
+        end
+    else
+        pats = DataFrame((login = pat.login, token = pat.token) for pat in pats)
+        load!(pats, GHOST.PARALLELENABLER.conn, "INSERT INTO $(schema).pats VALUES(\$1, \$2) ON CONFLICT DO NOTHING;")
+        GHOST.PARALLELENABLER.pat = GitHubPersonalAccessToken(values(first(pats))...)
+    end
     nothing
 end
 
 """
-    setup_parallel(limit::Integer = 0)::Nothing
+    setup_parallel(limit::Integer = 0; password::AbstractString = get(ENV, "PGPASSWORD", "postgres"))::Nothing
 
 Setup workers.
 """
-function setup_parallel(limit::Integer = 0)
+function setup_parallel(limit::Integer = 0; password::AbstractString = get(ENV, "PGPASSWORD", "postgres"))
     @unpack conn, schema = PARALLELENABLER
-    dbname = match(r"(?<=dbname = ).*(?=\n)", string(PARALLELENABLER.conn)).match
+    io = IOBuffer()
+    show(io, conn)
+    s = String(take!(io))
+    lns = strip.(split(s, '\n'))
+    host = lns[findfirst(ln -> startswith(ln, "host = "), lns)]
+    port = lns[findfirst(ln -> startswith(ln, "port = "), lns)]
+    dbname = lns[findfirst(ln -> startswith(ln, "dbname = "), lns)]
+    user = lns[findfirst(ln -> startswith(ln, "user = "), lns)]
     if limit > 0
         pat = DataFrame(execute(conn, "SELECT login, token FROM $schema.pats ORDER BY login LIMIT $limit;"))
     else
@@ -176,8 +203,12 @@ function setup_parallel(limit::Integer = 0)
     npats = length(pats)
     addprocs(npats, exeflags = `--proj`)
     remotecall_eval(Main, workers(), :(using GHOST))
+    @everywhere workers() host = $host
+    @everywhere workers() port = $port
     @everywhere workers() dbname = $dbname
-    @everywhere workers() GHOST.PARALLELENABLER.conn = Connection("dbname = $dbname")
+    @everywhere workers() user = $user
+    @everywhere workers() password = $password
+    @everywhere workers() GHOST.PARALLELENABLER.conn = Connection("$host $port $dbname $user password = $password")
     @everywhere workers() GHOST.PARALLELENABLER.schema = $schema
     GHOST.READY.x = Vector{Future}(undef, npats)
     for proc ∈ workers()

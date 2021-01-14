@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS schema.repos (
     branch text,
     commits bigint NOT NULL,
     asof timestamp NOT NULL DEFAULT date_trunc('second', current_timestamp AT TIME ZONE 'UTC')::timestamp,
-    status text NOT NULL DEFAULT 'Init'
+    status text NOT NULL DEFAULT 'Init',
+    CONSTRAINT repos_branch UNIQUE (branch)
 );
 COMMENT ON TABLE schema.repos IS 'Repository ID and base branch ID';
 COMMENT ON COLUMN schema.repos.id IS 'Repository ID';
