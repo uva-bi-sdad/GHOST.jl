@@ -46,7 +46,7 @@ function find_repos(batch::AbstractDataFrame)
         append!(output,
                 reduce(vcat,
                        DataFrame(parse_repo(node.node, spdx) for node in elem.edges)
-                       for (elem, spdx) in zip(values(json.data), batch[:spdx])))
+                       for (elem, spdx) in zip(values(json.data), batch[!,:spdx])))
         any(elem -> elem.pageInfo.hasNextPage, values(json.data)) || break
         for idx in eachindex(json.data)
             if !isnothing(json.data[idx].pageInfo.endCursor)
