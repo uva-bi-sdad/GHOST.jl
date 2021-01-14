@@ -22,9 +22,9 @@ Takes a batch of 10 spdx/createdat and puts the data in the database.
 """
 function find_repos(batch::AbstractDataFrame)
     @unpack conn, schema = PARALLELENABLER
-    output = DataFrame(vcat(fill(String, 3), DateTime, fill(Union{Missing, String}, 3), Int),
-                       [:id, :spdx, :slug, :createdat, :description, :primarylanguage, :branch, :commits],
-                       0)
+    output = DataFrame(id = String[], spdx = String[], slug = String[], createdat = DateTime[],
+                       description = Union{Missing, String}[], primarylanguage = Union{Missing, String}[],
+                       branch = Union{Missing, String}[], commits = Int[])
     subsquery = join([ string("_$idx:search(query:\"is:public fork:false mirror:false archived:false license:$(batch.spdx[idx]) created:",
                      format(batch.created[idx].first, "yyyy-mm-ddTHH:MM:SS\\Z"),
                      "..",
