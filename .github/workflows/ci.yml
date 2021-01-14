@@ -34,7 +34,7 @@ jobs:
   ci:
     services:
       postgres:
-        image: nosferican/postgres
+        image: postgres:13.1-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -67,8 +67,11 @@ jobs:
       - uses: julia-actions/julia-runtest@v0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          POSTGIS_HOST: localhost
+          PGHOST: localhost
           POSTGIS_PORT: ${{ job.services.postgres.ports[5432] }}
+          PGDATABASE: postgres
+          PGUSER: postgres
+          PGPASSWORD: postgres
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v1
         with:

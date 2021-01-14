@@ -139,9 +139,9 @@ function query_commits(branch::AbstractString)::Nothing
     nothing
 end
 """
-    query_commits_simple(branches::AbstractVector{<:AbstractString}, batch_size::Integer)::Nothing
+    query_commits(branches::AbstractVector{<:AbstractString}, batch_size::Integer)::Nothing
 """
-function query_commits_simple(branches::AbstractVector{<:AbstractString}, batch_size::Integer)::Nothing
+function query_commits(branches::AbstractVector{<:AbstractString}, batch_size::Integer)::Nothing
     @unpack conn, schema = PARALLELENABLER
     output = DataFrame(vcat(fill(String, 4), fill(Vector{Union{Missing,String}}, 3), fill(Int, 2)),
                        [:branch, :id, :sha1, :committed_ts, :emails, :names, :users, :additions, :deletions],
@@ -152,7 +152,7 @@ function query_commits_simple(branches::AbstractVector{<:AbstractString}, batch_
         (obj -> replace(obj, r"(:|,|\.{3})\s*" => s"\1")) |>
         strip |>
         string
-    vars = Dict("until" => "2020-01-01T00:00:00Z",
+    vars = Dict("until" => "$(floor(now(), Year))Z",
                 "nodes" => branches,
                 "first" => batch_size)
     result = graphql(query, vars = vars)
@@ -163,8 +163,8 @@ function query_commits_simple(branches::AbstractVector{<:AbstractString}, batch_
         if length(branches) == 1
             execute(conn, "UPDATE $schema.repos SET status = 'FOR_LATER' WHERE branch = '$(only(branches))';")
         else
-            query_commits_simple(view(branches, 1:length(branches) ÷ 2), batch_size)
-            query_commits_simple(view(branches, length(branches) ÷ 2 + 1:lastindex(branches)), batch_size)
+            query_commits(view(branches, 1:length(branches) ÷ 2), batch_size)
+            query_commits(view(branches, length(branches) ÷ 2 + 1:lastindex(branches)), batch_size)
         end
         return
     end
