@@ -18,6 +18,3 @@ end
 # find_repos(data[1])
 time_end = now()
 canonicalize(CompoundPeriod(time_end - time_start))
-
-
-data[1]

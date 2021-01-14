@@ -28,7 +28,6 @@ pats = [ GitHubPersonalAccessToken(split(pat, ':')...) for pat in filter!(!isemp
                    not_null = true) |>
         (obj -> getproperty.(obj, :branch))
     query_commits(data, 3)
-    println("So far so good!")
     chk = execute(GHOST.PARALLELENABLER.conn,
                   "SELECT count(*) = 1 success FROM $(GHOST.PARALLELENABLER.schema).queries WHERE done;",
                   not_null = true) |>
