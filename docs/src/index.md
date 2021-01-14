@@ -1,3 +1,3 @@
 # GHOST.jl
 
-A tool for collecting GitHub commit data about open source repositories.
+*GHOST.jl* is an open-sourced Julia package to collect and track GitHub activity as well as user information particularly useful for software analytic and socio-economic research. It addresses an unmet need for collecting variables currently missing from other existing projects (e.g., license information, multiple authors per commits, lines added/deleted, Twitter accounts). A significant contribution is the use of the GitHub v4 GraphQL API as opposed to the REST API, which allows major gains in the efficiency of the collection process. A component of the implementation design is that it does not aim to be comprehensive but selective in what data to capture while allowing methods to re-use data already available through other projects.
