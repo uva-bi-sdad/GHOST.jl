@@ -39,6 +39,8 @@ end
 @testset "Documentation" begin
     using Documenter, GHOST
 
+    prefix = ".."
+
     DocMeta.setdocmeta!(GHOST,
                        :DocTestSetup,
                        :(using GHOST, Documenter;
