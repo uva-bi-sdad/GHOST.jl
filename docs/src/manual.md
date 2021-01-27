@@ -88,7 +88,7 @@ In the GitHub [search syntax](https://help.github.com/en/github/searching-for-in
 
 where `$spdx` a license keyword (e.g., `mit`).
 
-!!! Warning
+!!! warning
 
     GitHub only allows to query up to 1,000 results per search connection result.
     If a query returns over 1,000 results, only the first 1,000 are accessible.
