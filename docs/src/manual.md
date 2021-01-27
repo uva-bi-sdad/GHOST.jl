@@ -96,6 +96,7 @@ where `$spdx` a license keyword (e.g., `mit`).
         - license (e.g., `spdx:mit`)
         - when it was created (e.g., `created:2010-01-01T00:00:00+00..2010-02-01T00:00:00+00`)
     We shrink intervals until the result count is 1,000 or fewer.
+
 ```
 created:2010-01-01T00:00:00+00..2010-01-01T12:00:00+00 1,850
 
