@@ -140,6 +140,11 @@ Sets up your PostgreSQL database for the project.
 # Example
 
 ```julia-repl
+julia> setup(pats = [GitHubPersonalAccessToken("MyGH_Login", ENV["GH_PAT"])])
+
+```
+
+```julia-repl
 julia> setup()
 
 ```
@@ -169,7 +174,7 @@ function setup(;host::AbstractString = get(ENV, "PGHOST", "localhost"),
             pat = DataFrame(execute(GHOST.PARALLELENABLER.conn, "SELECT login, token FROM $schema.pats ORDER BY login LIMIT 1;"))
             GHOST.PARALLELENABLER.pat = only(GitHubPersonalAccessToken.(pat.login, pat.token))
         catch err
-            throw(ArgumentError("No PAT was provided nor available in the database."))
+            throw(ArgumentError("No PAT was provided nor available in the database. You can provide PAT directly through `setup` using the keyword argument `pats`."))
         end
     else
         pats = DataFrame((login = pat.login, token = pat.token) for pat in pats)
