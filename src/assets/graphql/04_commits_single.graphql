@@ -12,7 +12,7 @@ query Commits($node: ID!, $since: GitTimestamp, $until: GitTimestamp, $first: In
                 id
                 oid
                 committedDate
-                authors(first: 100) {
+                authors(first: 5) {
                   edges {
                     node {
                       user {

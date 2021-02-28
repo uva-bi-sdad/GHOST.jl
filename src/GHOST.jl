@@ -69,5 +69,6 @@ export GitHubPersonalAccessToken, queries, setup, setup_parallel,
        generate_search_query, graphql, JSON3, @sync, @distributed,
        licenses, find_queries, find_repos, query_commits_simple, query_commits,
        now, CompoundPeriod, canonicalize,
-       groupby
+       groupby,
+       @unpack
 end

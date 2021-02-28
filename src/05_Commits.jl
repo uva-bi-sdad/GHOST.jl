@@ -35,7 +35,7 @@ end
 """
 function query_commits(branch::AbstractString)::Nothing
     @unpack conn, schema = GHOST.PARALLELENABLER
-    since = execute(conn, "SELECT MIN(committedat) AS since FROM gh_2007_2020.commits WHERE branch = '$branch';") |>
+    since = execute(conn, "SELECT MIN(committedat) AS since FROM $(schema).commits WHERE branch = '$branch';") |>
         (obj -> only(getproperty.(obj, :since)))
     since = coalesce(since, GHOST.GH_FIRST_REPO_TS)
     output = DataFrame(vcat(fill(String, 4), fill(Vector{Union{Missing,String}}, 3), fill(Int, 2)),
@@ -82,7 +82,7 @@ function query_commits(branch::AbstractString)::Nothing
     execute(conn, "BEGIN;")
     load!(output,
           conn,
-          string("INSERT INTO $schema.commits VALUES (",
+          string("INSERT INTO $(schema).commits VALUES (",
                  join(("\$$i" for i in 1:size(output, 2)), ','),
                  ") ON CONFLICT ON CONSTRAINT commits_pkey DO NOTHING;"))
     execute(conn, "COMMIT;")
@@ -130,7 +130,7 @@ function query_commits(branch::AbstractString)::Nothing
     end
     execute(conn,
             """
-            UPDATE $schema.repos
+            UPDATE $(schema).repos
             SET status = 'Done'
             WHERE branch = '$branch'
             ;
