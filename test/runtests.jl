@@ -21,7 +21,7 @@ pats = [ GitHubPersonalAccessToken(split(pat, ':')...) for pat in filter!(!isemp
     data = data[findfirst(subdf -> sum(subdf.queries) == low, data)]
     find_repos(data)
     data = execute(GHOST.PARALLELENABLER.conn,
-                   String(read(joinpath(dirname(pathof(GHOST)), "assets", "sql", "branches_min_max.sql"))) |>
+                   String(read(joinpath(pkgdir(GHOST), "src", "assets", "sql", "branches_min_max.sql"))) |>
                        (obj -> replace(obj, "schema" => GHOST.PARALLELENABLER.schema)) |>
                        (obj -> replace(obj, "min_lim" => 1)) |>
                        (obj -> replace(obj, "max_lim" => 2)),

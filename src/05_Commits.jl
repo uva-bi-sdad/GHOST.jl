@@ -146,7 +146,7 @@ function query_commits(branches::AbstractVector{<:AbstractString}, batch_size::I
     output = DataFrame(vcat(fill(String, 4), fill(Vector{Union{Missing,String}}, 3), fill(Int, 2)),
                        [:branch, :id, :sha1, :committed_ts, :emails, :names, :users, :additions, :deletions],
                        0)
-    query = String(read(joinpath(dirname(pathof(GHOST)), "assets", "graphql", "03_commits.graphql"))) |>
+    query = String(read(joinpath(pkgdir(GHOST), "src", "assets", "graphql", "03_commits.graphql"))) |>
         (obj -> replace(obj, r"\s+" => " ")) |>
         (obj -> replace(obj, r"\s+(\{|\}|\:)\s*" => s"\1")) |>
         (obj -> replace(obj, r"(:|,|\.{3})\s*" => s"\1")) |>
@@ -161,7 +161,7 @@ function query_commits(branches::AbstractVector{<:AbstractString}, batch_size::I
         json.data
     catch err
         if length(branches) == 1
-            execute(conn, "UPDATE $schema.repos SET status = 'FOR_LATER' WHERE branch = '$(only(branches))';")
+            execute(conn, "UPDATE $(schema).repos SET status = 'FOR_LATER' WHERE branch = '$(only(branches))';")
         else
             query_commits(view(branches, 1:length(branches) ÷ 2), batch_size)
             query_commits(view(branches, length(branches) ÷ 2 + 1:lastindex(branches)), batch_size)
@@ -170,12 +170,12 @@ function query_commits(branches::AbstractVector{<:AbstractString}, batch_size::I
     end
     for (branch, nodes) in zip(branches, values(json.nodes))
         if isnothing(nodes)
-            execute(conn, "UPDATE $schema.repos SET status = 'NOT_FOUND' WHERE branch = '$branch';")
+            execute(conn, "UPDATE $(schema).repos SET status = 'NOT_FOUND' WHERE branch = '$branch';")
         else
             for edge in nodes.target.history.edges
                 nodes = values(edge)
                 if any(isnothing, nodes)
-                    execute(conn, "UPDATE $schema.repos SET status = 'SERVICE_UNAVAILABLE' WHERE branch = '$branch';")
+                    execute(conn, "UPDATE $(schema).repos SET status = 'SERVICE_UNAVAILABLE' WHERE branch = '$branch';")
                 else
                     for node in nodes
                         push!(output, parse_commit(branch, node))
@@ -188,7 +188,7 @@ function query_commits(branches::AbstractVector{<:AbstractString}, batch_size::I
         execute(conn, "BEGIN;")
         load!(output,
               conn,
-              string("INSERT INTO $schema.commits VALUES (",
+              string("INSERT INTO $(schema).commits VALUES (",
                      join(("\$$i" for i in 1:size(output, 2)), ','),
                      ") ON CONFLICT ON CONSTRAINT commits_pkey DO NOTHING;"))
         execute(conn, "COMMIT;")
@@ -198,7 +198,7 @@ function query_commits(branches::AbstractVector{<:AbstractString}, batch_size::I
     end
     execute(conn,
             """
-            UPDATE $schema.repos
+            UPDATE $(schema).repos
             SET status = 'Done'
             WHERE branch = ANY('{$(join(unique(output.branch), ','))}'::text[])
             ;

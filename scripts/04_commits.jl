@@ -12,10 +12,14 @@ data = execute(conn,
     (obj -> getproperty.(obj, :branch))
 time_start = now()
 
+idx = (1:8:500)[6]
+query_commits(view(data, idx:min(idx + 7, lastindex(data))), 100)
+
 println(time_start)
-@sync @distributed for idx in 1:8:lastindex(data)
+# @sync @distributed for idx in 1:8:500
+for idx in 1:8:500
     query_commits(view(data, idx:min(idx + 7, lastindex(data))), 100)
-    sleep(1)
+    sleep(0.25)
 end
 time_end = now()
 canonicalize(CompoundPeriod(time_end - time_start))
