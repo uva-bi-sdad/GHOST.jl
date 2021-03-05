@@ -50,7 +50,7 @@ function query_commits(branch::AbstractString)::Nothing
     vars = Dict("since" => string(since, "Z"),
                 "until" => "2020-01-01T00:00:00Z",
                 "node" => branch,
-                "first" => 64,
+                "first" => 32,
                 )
     success = false
     json = try
