@@ -11,7 +11,7 @@ LibPQ = "194296ae-ab2e-5f79-8cd4-7183a0a5a0d1"
 Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
 
 [compat]
-DataFrames = "0.22"
+DataFrames = "0.22, 1.0"
 Diana = "0.2"
 JSON3 = "1"
 LibPQ = "1.6.2"
