@@ -10,6 +10,14 @@ data = execute(conn,
                "SELECT branch FROM $(schema).repos WHERE status = 'Init' ORDER BY commits;",
                not_null = true) |>
     (obj -> getproperty.(obj, :branch))
+branch = data[3]
+
+println(now())
+for branch in data
+    query_commits(branch)
+end
+println(now())
+
 @everywhere function magic(branch)
     query_commits(branch)
 end
