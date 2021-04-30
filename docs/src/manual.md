@@ -168,10 +168,10 @@ The `commits` table contains this data and is used to update the status of the r
 |  queries |       done      |                   Has the repositories been collected?                  |
 |   repos  |        id       |                              Repository ID                              |
 |   repos  |       spdx      |                             SPDX license ID                             |
-|   repos  |       slug      |                       Location of the respository                       |
+|   repos  |       slug      |                       Location of the repository                       |
 |   repos  |    createdat    |                When was the repository created on GitHub?               |
-|   repos  |   description   |                      Description of the respository                     |
-|   repos  | primarylanguage |                   Primary language of the respository                   |
+|   repos  |   description   |                      Description of the repository                     |
+|   repos  | primarylanguage |                   Primary language of the repository                   |
 |   repos  |      branch     |                              Base branch ID                             |
 |   repos  |     commits     | Number of commits in the branch until the end of the observation period |
 |   repos  |       asof      |                         When was GitHub queried?                        |
